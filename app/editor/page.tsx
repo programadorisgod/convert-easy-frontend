@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import Link from "next/link"
@@ -20,7 +21,7 @@ interface StoredFileInfo {
   category: FileCategory
 }
 
-export default function EditorPage() {
+function EditorContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const fileId = searchParams.get("file")
@@ -147,5 +148,24 @@ export default function EditorPage() {
         </Button>
       </div>
     </div>
+  )
+}
+
+function EditorLoadingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+        <p className="mt-4 text-muted-foreground">Loading editor...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function EditorPage() {
+  return (
+    <Suspense fallback={<EditorLoadingFallback />}>
+      <EditorContent />
+    </Suspense>
   )
 }
