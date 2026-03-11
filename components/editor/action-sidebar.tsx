@@ -290,7 +290,8 @@ export function ActionSidebar({
             sileo.error({
               title: "❌ Conversion failed",
               description:
-                status.error_message || "An error occurred while processing your file. Please try again.",
+                status.error_message ||
+                "An error occurred while processing your file. Please try again.",
               icon: <AlertCircle className="size-3.5" />,
               roundness: 16,
               autopilot: {
@@ -309,11 +310,15 @@ export function ActionSidebar({
 
       // User-friendly error messages
       let errorMessage = "Could not convert the file";
-      
+
       if (error instanceof Error) {
         // Check if it's a network error
-        if (error.message.includes("NetworkError") || error.message.includes("fetch")) {
-          errorMessage = "Could not connect to the server. Please check your internet connection or try again later.";
+        if (
+          error.message.includes("NetworkError") ||
+          error.message.includes("fetch")
+        ) {
+          errorMessage =
+            "Could not connect to the server. Please check your internet connection or try again later.";
         } else {
           errorMessage = error.message;
         }
@@ -329,7 +334,6 @@ export function ActionSidebar({
           collapse: 4000,
         },
         duration: 8000,
-        
       });
       setIsConverting(false);
       setConversionStatus(null);
@@ -413,9 +417,7 @@ export function ActionSidebar({
       console.error("Download error:", error);
 
       const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Could not download the file";
+        error instanceof Error ? error.message : "Could not download the file";
 
       sileo.error({
         title: "Download error",
