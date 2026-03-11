@@ -7,6 +7,7 @@
 **Versión**: 0.1.0 (Release - March 11, 2026)
 
 ✅ **Conversión de Imágenes Funcional**
+
 - Upload de archivos pequeños (<10MB) y grandes (>10MB con chunking)
 - Conversión real con Easy Convert API
 - Progress tracking en tiempo real
@@ -66,11 +67,41 @@ La aplicación soporta 3 temas:
 
 Los temas se gestionan mediante `next-themes` y CSS variables.
 
+## ⚙️ Configuración
+
+### Variables de Entorno
+
+La aplicación utiliza variables de entorno para configurar la URL del backend:
+
+| Variable              | Descripción              | Valor de Desarrollo     | Valor de Producción                     |
+| --------------------- | ------------------------ | ----------------------- | --------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | URL base del backend API | `http://127.0.0.1:8000` | `https://convert-easy-api.onrender.com` |
+
+**Archivos de configuración:**
+
+- `.env.local` - Tu configuración local (no se sube a Git)
+- `.env.example` - Plantilla de referencia con valores por defecto
+
+Para configurar tu entorno:
+
+```bash
+# Copia el archivo de ejemplo
+cp .env.example .env.local
+
+# Edita .env.local con tus valores
+# Para desarrollo local (por defecto):
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+
+# Para producción:
+NEXT_PUBLIC_API_URL=https://convert-easy-api.onrender.com
+```
+
 ## 🔧 Instalación y Desarrollo
 
 ### Prerequisitos
 
 1. **Backend API** debe estar corriendo:
+
 ```bash
 cd ../easy_convert_api
 uv run fastapi dev
@@ -78,6 +109,7 @@ uv run fastapi dev
 ```
 
 2. **Redis** debe estar corriendo:
+
 ```bash
 redis-server
 # o usando Docker
@@ -89,6 +121,13 @@ docker run -d -p 6379:6379 redis
 ```bash
 # Instalar dependencias
 pnpm install
+
+# Configurar variables de entorno
+# Copia el archivo .env.example y renómbralo a .env.local
+cp .env.example .env.local
+# Luego edita .env.local con la URL correcta de tu API:
+# - Desarrollo local: http://127.0.0.1:8000
+# - Producción: https://convert-easy-api.onrender.com
 
 # Iniciar servidor de desarrollo
 pnpm dev
@@ -107,20 +146,24 @@ pnpm lint
 ## 🎯 Uso
 
 ### 1. Subir Archivo
+
 - Arrastra un archivo a la zona de drop, o
 - Haz clic para seleccionar un archivo
 
 ### 2. Convertir
+
 - En el editor, haz clic en "Convert"
 - Selecciona el formato de destino
 - Haz clic en "Convert"
 - Espera a que termine el proceso
 
 ### 3. Descargar
+
 - Una vez completada la conversión, el botón "Download Result" se habilitará
 - Haz clic para descargar el archivo convertido
 
 ### Archivos Grandes (>10MB)
+
 - Se usa chunking automático (5MB chunks)
 - El progreso se muestra en la barra
 - Puedes cancelar la conversión en cualquier momento
@@ -164,15 +207,19 @@ pnpm lint
 ## 📄 Tipos de Archivos Soportados
 
 ### Documentos
+
 - PDF, DOCX, ODT, TXT, MD, HTML
 
 ### Imágenes
+
 - JPG, PNG, GIF, WebP, SVG, BMP, TIFF, HEIC
 
 ### Videos
+
 - MP4, MKV, AVI, WebM, MOV, FLV
 
 ### Audio
+
 - MP3, WAV, FLAC, OGG, AAC, M4A
 
 ## 🔐 Privacidad
@@ -184,20 +231,24 @@ pnpm lint
 ## 🎯 Convenciones del Código
 
 ### Imports
+
 - No usar `import * as React from 'react'`
 - Usar imports específicos: `import { useState, useEffect } from 'react'`
 
 ### Componentes
+
 - Usar `'use client'` para componentes interactivos
 - Preferir componentes funcionales con hooks
 - Usar TypeScript para todos los componentes
 
 ### Estilos
+
 - Usar Tailwind CSS exclusivamente
 - Seguir la guía de estilos de shadcn/ui
 - Usar `cn()` para combinar clases
 
 ### Toasts
+
 - Usar Sileo para notificaciones
 - Incluir descripciones claras
 - Para archivos >10MB, indicar que puede continuar usando la app

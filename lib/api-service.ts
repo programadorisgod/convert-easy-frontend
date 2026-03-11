@@ -16,7 +16,7 @@ import type {
 } from "@/types/api"
 
 // Constants
-const API_BASE_URL = "http://127.0.0.1:8000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 const API_V1_PREFIX = "/api/v1"
 const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB
 const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024 // 10MB
