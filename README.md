@@ -33,7 +33,7 @@ conver-easy-frontend/
 │   └── ui/                  # Componentes shadcn/ui
 ├── lib/
 │   ├── file-actions.ts      # Configuración de acciones por tipo
-│   ├── file-utils.ts        # Utilidades para archivos
+│   ├── file-ut/home/camidev/Documents/side-projects/convert-easy-suite/File Conversion Job Workflow-2026-03-09-214054.pngls.ts        # Utilidades para archivos
 │   ├── file-store.ts        # Store en memoria para archivos
 │   ├── nav-config.ts        # Configuración de navegación
 │   └── utils.ts             # Utilidades generales
