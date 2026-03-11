@@ -1,7 +1,6 @@
 "use client"
 
-
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import Link from "next/link"
@@ -10,6 +9,7 @@ import { Header } from "@/components/header"
 import { FilePreview } from "@/components/editor/file-preview"
 import { ActionSidebar } from "@/components/editor/action-sidebar"
 import { Button } from "@/components/ui/button"
+import { getFile, createFilePreviewUrl } from "@/lib/file-store"
 import type { FileCategory } from "@/types/file"
 
 interface StoredFileInfo {
@@ -29,6 +29,19 @@ function EditorContent() {
   const [fileInfo, setFileInfo] = useState<StoredFileInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Create preview URL for audio/video/image files
+  const previewUrl = useMemo(() => {
+    if (!fileInfo) return undefined
+    const file = getFile(fileInfo.id)
+    if (!file) return undefined
+    
+    // Only create preview URLs for media files
+    if (["image", "video", "audio"].includes(fileInfo.category)) {
+      return createFilePreviewUrl(file)
+    }
+    return undefined
+  }, [fileInfo])
 
   useEffect(() => {
     // Try to get file info from sessionStorage
@@ -132,6 +145,7 @@ function EditorContent() {
             size={fileInfo.size}
             category={fileInfo.category}
             extension={fileInfo.extension}
+            previewUrl={previewUrl}
           />
         </main>
       </div>

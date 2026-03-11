@@ -1,12 +1,11 @@
 "use client"
 
-
 import { useRouter } from "next/navigation"
 import { Upload, FileText, Image, Film, Music, File } from "lucide-react"
-import { sileo } from "sileo"
 
 import { cn } from "@/lib/utils"
 import { createFileInfo, formatFileSize, getCategoryLabel } from "@/lib/file-utils"
+import { storeFile } from "@/lib/file-store"
 import type { FileInfo, FileCategory } from "@/types/file"
 import { ChangeEvent, DragEvent, ElementType, useCallback, useRef, useState } from "react"
 
@@ -44,6 +43,9 @@ export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
   const processFile = useCallback((file: File) => {
     const fileInfo = createFileInfo(file)
     setSelectedFile(fileInfo)
+
+    // Store the actual file for preview purposes
+    storeFile(fileInfo.id, file)
 
     if (onFileSelect) {
       onFileSelect(fileInfo)
