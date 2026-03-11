@@ -27,7 +27,6 @@ import type { JobStatus } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +67,6 @@ export function ActionSidebar({
 
   // Conversion state
   const [isConverting, setIsConverting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [conversionStatus, setConversionStatus] = useState<JobStatus | null>(
     null,
   );
@@ -243,15 +241,14 @@ export function ActionSidebar({
       return;
     }
 
-    // Para archivos grandes: mostrar progreso completo
+    // Para archivos grandes: mostrar estado de procesamiento
     setIsConverting(true);
-    setUploadProgress(0);
-    setConversionStatus("pending");
+    setConversionStatus("processing");
 
     try {
       sileo.info({
         title: "Starting conversion",
-        description: `Uploading ${fileName} in chunks... You can continue using the app while your file is being processed.`,
+        description: `Processing ${fileName}... You can continue using the app while your file is being processed.`,
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
         autopilot: {
@@ -266,15 +263,7 @@ export function ActionSidebar({
         file,
         inputFormat,
         [selectedFormat],
-        (stage, progress) => {
-          if (stage === "uploading") {
-            setUploadProgress(progress);
-            setConversionStatus("uploading");
-          } else if (stage === "converting") {
-            setUploadProgress(100);
-            setConversionStatus("processing");
-          }
-        },
+        () => {}, // No progress callback for large files - API doesn't provide progress endpoint
       );
 
       setCurrentJobId(jobId);
@@ -345,7 +334,6 @@ export function ActionSidebar({
       setIsConverting(false);
       setConversionStatus(null);
       setCurrentJobId(null);
-      setUploadProgress(0);
     }
 
     if (onActionSelect) {
@@ -370,7 +358,6 @@ export function ActionSidebar({
       setIsConverting(false);
       setConversionStatus(null);
       setCurrentJobId(null);
-      setUploadProgress(0);
     } catch (error) {
       console.error("Cancel error:", error);
 
@@ -419,7 +406,6 @@ export function ActionSidebar({
         setIsConverting(false);
         setConversionStatus(null);
         setCurrentJobId(null);
-        setUploadProgress(0);
         setDownloadUrl(null);
         setSelectedFormat("");
       }, 1000);
@@ -451,12 +437,10 @@ export function ActionSidebar({
     switch (conversionStatus) {
       case "pending":
         return "Preparing...";
-      case "uploading":
-        return `Uploading... ${uploadProgress}%`;
       case "queued":
         return "Queued...";
       case "processing":
-        return "Converting...";
+        return "Processing your file...";
       case "completed":
         return "Completed!";
       case "failed":
@@ -490,20 +474,11 @@ export function ActionSidebar({
                 <span className="font-medium text-foreground">
                   {getStatusText()}
                 </span>
-                {conversionStatus === "uploading" && (
-                  <span className="text-xs text-muted-foreground">
-                    {uploadProgress}%
-                  </span>
-                )}
               </div>
 
-              {(conversionStatus === "uploading" ||
-                conversionStatus === "pending") && (
-                <Progress value={uploadProgress} className="h-2" />
-              )}
-
               {(conversionStatus === "processing" ||
-                conversionStatus === "queued") && (
+                conversionStatus === "queued" ||
+                conversionStatus === "pending") && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Processing your file...</span>
