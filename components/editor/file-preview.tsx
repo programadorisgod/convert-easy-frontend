@@ -1,13 +1,13 @@
 "use client"
 
-import * as React from "react"
 import { FileText, Image, Film, Music, File, Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { formatFileSize, isLargeFile } from "@/lib/file-utils"
 import type { FileCategory } from "@/types/file"
+import { ElementType } from "react"
 
-const CATEGORY_ICONS: Record<FileCategory, React.ElementType> = {
+const CATEGORY_ICONS: Record<FileCategory, ElementType> = {
   document: FileText,
   image: Image,
   video: Film,
@@ -35,7 +35,6 @@ export function FilePreview({
   className,
 }: FilePreviewProps) {
   const IconComponent = CATEGORY_ICONS[category]
-  const isLarge = isLargeFile(size)
 
   return (
     <div
@@ -53,6 +52,29 @@ export function FilePreview({
             alt={name}
             className="h-auto max-h-[400px] w-auto object-contain"
           />
+        </div>
+      ) : category === "video" && previewUrl ? (
+        <div className="relative w-full max-w-2xl overflow-hidden rounded-lg">
+          <video
+            src={previewUrl}
+            controls
+            className="h-auto w-full object-contain"
+          >
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      ) : category === "audio" && previewUrl ? (
+        <div className="flex w-full max-w-md flex-col items-center gap-6">
+          <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-muted">
+            <IconComponent className="h-16 w-16 text-muted-foreground" />
+          </div>
+          <audio
+            src={previewUrl}
+            controls
+            className="w-full"
+          >
+            Your browser does not support the audio tag.
+          </audio>
         </div>
       ) : (
         <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-muted">
@@ -74,15 +96,7 @@ export function FilePreview({
         </p>
       </div>
 
-      {/* Large file notice */}
-      {isLarge && (
-        <div className="mt-6 max-w-md rounded-lg bg-primary/10 p-4 text-center">
-          <p className="text-sm text-primary">
-            This is a large file. You can continue working while we prepare it
-            for processing.
-          </p>
-        </div>
-      )}
+   
 
       {/* Processing indicator */}
       {isProcessing && (

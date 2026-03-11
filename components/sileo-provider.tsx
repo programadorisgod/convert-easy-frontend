@@ -6,8 +6,11 @@ export function SileoProvider() {
   return (
     <Toaster
       position="bottom-right"
-      toastOptions={{
-        className: "font-sans",
+      theme="system"
+      offset={16}
+      options={{
+        autopilot: true,
+        duration: 5000,
       }}
     />
   )

@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+
 import { useRouter } from "next/navigation"
 import { Upload, FileText, Image, Film, Music, File } from "lucide-react"
 import { sileo } from "sileo"
@@ -8,8 +8,9 @@ import { sileo } from "sileo"
 import { cn } from "@/lib/utils"
 import { createFileInfo, formatFileSize, getCategoryLabel } from "@/lib/file-utils"
 import type { FileInfo, FileCategory } from "@/types/file"
+import { ChangeEvent, DragEvent, ElementType, useCallback, useRef, useState } from "react"
 
-const CATEGORY_ICONS: Record<FileCategory, React.ElementType> = {
+const CATEGORY_ICONS: Record<FileCategory, ElementType> = {
   document: FileText,
   image: Image,
   video: Film,
@@ -24,30 +25,25 @@ interface FileDropzoneProps {
 
 export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
   const router = useRouter()
-  const [isDragOver, setIsDragOver] = React.useState(false)
-  const [selectedFile, setSelectedFile] = React.useState<FileInfo | null>(null)
-  const inputRef = React.useRef<HTMLInputElement>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const handleDragOver = React.useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragOver(true)
   }, [])
 
-  const handleDragLeave = React.useCallback((e: React.DragEvent) => {
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragOver(false)
   }, [])
 
-  const processFile = React.useCallback((file: File) => {
+  const processFile = useCallback((file: File) => {
     const fileInfo = createFileInfo(file)
     setSelectedFile(fileInfo)
-    
-    sileo.success({
-      title: "File detected",
-      description: `${getCategoryLabel(fileInfo.category)}: ${fileInfo.name}`,
-    })
 
     if (onFileSelect) {
       onFileSelect(fileInfo)
@@ -67,13 +63,13 @@ export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
     router.push(`/editor?file=${fileInfo.id}`)
   }, [onFileSelect, router])
 
-  const handleDrop = React.useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragOver(false)
 
-    const files = e.dataTransfer.files
-    if (files.length > 0) {
+    const files = e.dataTransfer?.files
+    if (files && files.length > 0) {
       processFile(files[0])
     }
   }, [processFile])
@@ -82,7 +78,7 @@ export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
     inputRef.current?.click()
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files.length > 0) {
       processFile(files[0])

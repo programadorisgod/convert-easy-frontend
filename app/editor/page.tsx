@@ -1,7 +1,7 @@
 "use client"
 
-import * as React from "react"
-import { Suspense } from "react"
+
+import { Suspense, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import Link from "next/link"
@@ -26,11 +26,11 @@ function EditorContent() {
   const router = useRouter()
   const fileId = searchParams.get("file")
   
-  const [fileInfo, setFileInfo] = React.useState<StoredFileInfo | null>(null)
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [fileInfo, setFileInfo] = useState<StoredFileInfo | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Try to get file info from sessionStorage
     const stored = sessionStorage.getItem("pendingFile")
     
@@ -120,6 +120,7 @@ function EditorContent() {
         <ActionSidebar
           category={fileInfo.category}
           fileName={fileInfo.name}
+          fileSize={fileInfo.size}
           onActionSelect={handleActionSelect}
           className="hidden md:flex"
         />

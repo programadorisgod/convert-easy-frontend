@@ -1,4 +1,4 @@
-import { Shield, Zap, Lock, Globe } from "lucide-react"
+import {  Zap, Lock, Globe } from "lucide-react"
 
 import { Header } from "@/components/header"
 import { FileDropzone } from "@/components/file-dropzone"

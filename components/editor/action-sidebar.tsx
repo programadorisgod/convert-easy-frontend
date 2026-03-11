@@ -1,7 +1,6 @@
 "use client"
 
-import * as React from "react"
-import { ChevronRight, Download } from "lucide-react"
+import { ChevronRight, Download, Info, AlertCircle, Sparkles } from "lucide-react"
 import { sileo } from "sileo"
 
 import { cn } from "@/lib/utils"
@@ -19,10 +18,12 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import type { FileCategory, ConversionOption } from "@/types/file"
+import { useState } from "react"
 
 interface ActionSidebarProps {
   category: FileCategory
   fileName: string
+  fileSize: number
   onActionSelect?: (actionId: string, options?: Record<string, unknown>) => void
   className?: string
 }
@@ -30,12 +31,13 @@ interface ActionSidebarProps {
 export function ActionSidebar({
   category,
   fileName,
+  fileSize,
   onActionSelect,
   className,
 }: ActionSidebarProps) {
-  const [selectedAction, setSelectedAction] = React.useState<string | null>(null)
-  const [showConvertDialog, setShowConvertDialog] = React.useState(false)
-  const [selectedFormat, setSelectedFormat] = React.useState<string>("")
+  const [selectedAction, setSelectedAction] = useState<string | null>(null)
+  const [showConvertDialog, setShowConvertDialog] = useState(false)
+  const [selectedFormat, setSelectedFormat] = useState<string>("")
 
   const actions = getActionsForCategory(category)
   const conversionOptions = getConversionOptions(category)
@@ -52,6 +54,13 @@ export function ActionSidebar({
     sileo.info({
       title: `${actionId.charAt(0).toUpperCase() + actionId.slice(1)} selected`,
       description: "This feature will be available soon.",
+      icon: <Info className="size-3.5" />,
+      roundness: 16,
+      autopilot: {
+        expand: 200,
+        collapse: 2500,
+      },
+      duration: 3500,
     })
 
     if (onActionSelect) {
@@ -64,13 +73,31 @@ export function ActionSidebar({
       sileo.error({
         title: "Select a format",
         description: "Please select a target format for conversion.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        autopilot: {
+          expand: 200,
+          collapse: 2500,
+        },
+        duration: 3500,
       })
       return
     }
 
+    const isLargeFile = fileSize > 10 * 1024 * 1024 // 10MB
+    
     sileo.success({
       title: "Conversion started",
-      description: `Converting ${fileName} to ${selectedFormat.toUpperCase()}...`,
+      description: isLargeFile
+        ? `Converting ${fileName} to ${selectedFormat.toUpperCase()}... • This may take a while, you can continue using the app`
+        : `Converting ${fileName} to ${selectedFormat.toUpperCase()}...`,
+      icon: <Sparkles className="size-3.5" />,
+      roundness: 16,
+      autopilot: {
+        expand: 200,
+        collapse: isLargeFile ? 4000 : 3000,
+      },
+      duration: isLargeFile ? 6000 : 4000,
     })
 
     setShowConvertDialog(false)
