@@ -4,23 +4,23 @@
 ## 🎯 Prioridad Alta
 
 ### Features Core
-- [ ] Implementar conversión real de archivos
-  - [ ] API backend para conversión
-  - [ ] Integración con servicio de conversión
-  - [ ] Manejo de respuesta y descarga
-- [ ] Barra de progreso para procesamiento
-  - [ ] Indicador visual de progreso 0-100%
-  - [ ] Estado de "processing" en FileInfo
-  - [ ] Actualización en tiempo real
-- [ ] Permitir cancelar procesamiento
-  - [ ] Botón de cancelar
-  - [ ] AbortController para requests
-  - [ ] Limpieza de estado al cancelar
-- [ ] Vista de descarga de archivo
-  - [ ] Componente DownloadResult
-  - [ ] Botón de descarga
-  - [ ] Opción de convertir otro archivo
-  - [ ] Limpieza de archivo anterior
+- [x] Implementar conversión real de archivos ✅
+  - [x] API backend para conversión ✅
+  - [x] Integración con servicio de conversión ✅
+  - [x] Manejo de respuesta y descarga ✅
+- [x] Barra de progreso para procesamiento ✅
+  - [x] Indicador visual de progreso 0-100% ✅
+  - [x] Estado de "processing" en FileInfo ✅
+  - [x] Actualización en tiempo real ✅
+- [x] Permitir cancelar procesamiento ✅
+  - [x] Botón de cancelar ✅
+  - [x] AbortController para requests ✅
+  - [x] Limpieza de estado al cancelar ✅
+- [x] Vista de descarga de archivo ✅
+  - [x] Componente DownloadResult ✅
+  - [x] Botón de descarga ✅
+  - [x] Opción de convertir otro archivo ✅
+  - [x] Limpieza de archivo anterior ✅
 
 ### Bugs y Mejoras
 - [ ] Validación de tipos de archivo permitidos
@@ -138,6 +138,13 @@
 - [x] Sidebar de acciones
 - [x] Toasts con Sileo
 - [x] Header y navegación
+- [x] Conversión real de imágenes con API
+- [x] Upload de archivos pequeños (<10MB)
+- [x] Upload chunked para archivos grandes (>10MB)
+- [x] Barra de progreso durante conversión
+- [x] Polling de status de jobs
+- [x] Cancelar conversión en progreso
+- [x] Descarga de archivos convertidos
 
 ### Fixes
 - [x] Error de Suspense en /editor

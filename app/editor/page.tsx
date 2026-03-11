@@ -134,6 +134,8 @@ function EditorContent() {
           category={fileInfo.category}
           fileName={fileInfo.name}
           fileSize={fileInfo.size}
+          fileId={fileInfo.id}
+          inputFormat={fileInfo.extension}
           onActionSelect={handleActionSelect}
           className="hidden md:flex"
         />

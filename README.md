@@ -1,6 +1,17 @@
 # Easy Convert - Frontend
 
-> Herramienta de conversión de archivos con enfoque en privacidad. Todo el procesamiento ocurre localmente o con uploads encriptados.
+> Herramienta de conversión de archivos con enfoque en privacidad. Todo el procesamiento ocurre en el servidor backend con eliminación inmediata después de la descarga.
+
+## ✨ Estado Actual
+
+**Versión**: 0.1.0 (Release - March 11, 2026)
+
+✅ **Conversión de Imágenes Funcional**
+- Upload de archivos pequeños (<10MB) y grandes (>10MB con chunking)
+- Conversión real con Easy Convert API
+- Progress tracking en tiempo real
+- Cancelación de conversión
+- Descarga automática de resultados
 
 ## 🚀 Stack Tecnológico
 
@@ -10,6 +21,7 @@
 - **Notifications**: Sileo
 - **Type Safety**: TypeScript
 - **Package Manager**: pnpm
+- **Backend API**: FastAPI (http://127.0.0.1:8000)
 
 ## 📁 Estructura del Proyecto
 
@@ -56,12 +68,31 @@ Los temas se gestionan mediante `next-themes` y CSS variables.
 
 ## 🔧 Instalación y Desarrollo
 
+### Prerequisitos
+
+1. **Backend API** debe estar corriendo:
+```bash
+cd ../easy_convert_api
+uv run fastapi dev
+# API disponible en http://127.0.0.1:8000
+```
+
+2. **Redis** debe estar corriendo:
+```bash
+redis-server
+# o usando Docker
+docker run -d -p 6379:6379 redis
+```
+
+### Frontend Setup
+
 ```bash
 # Instalar dependencias
 pnpm install
 
 # Iniciar servidor de desarrollo
 pnpm dev
+# Disponible en http://localhost:3000
 
 # Build de producción
 pnpm build
@@ -72,6 +103,27 @@ pnpm start
 # Linting
 pnpm lint
 ```
+
+## 🎯 Uso
+
+### 1. Subir Archivo
+- Arrastra un archivo a la zona de drop, o
+- Haz clic para seleccionar un archivo
+
+### 2. Convertir
+- En el editor, haz clic en "Convert"
+- Selecciona el formato de destino
+- Haz clic en "Convert"
+- Espera a que termine el proceso
+
+### 3. Descargar
+- Una vez completada la conversión, el botón "Download Result" se habilitará
+- Haz clic para descargar el archivo convertido
+
+### Archivos Grandes (>10MB)
+- Se usa chunking automático (5MB chunks)
+- El progreso se muestra en la barra
+- Puedes cancelar la conversión en cualquier momento
 
 ## 📝 Funcionalidades Implementadas
 
@@ -85,6 +137,20 @@ pnpm lint
 - [x] Store en memoria para archivos
 - [x] Sidebar de acciones data-driven
 - [x] Responsive design
+
+### ✅ Conversión de Imágenes (Fase 1)
+
+- [x] Upload de archivos pequeños (<10MB)
+- [x] Upload chunked para archivos grandes (>10MB)
+- [x] Progress tracking en tiempo real
+- [x] Conversión con API backend
+- [x] Polling de status automático
+- [x] Cancelación de conversión
+- [x] Descarga de resultados
+- [x] Limpieza automática después de descarga
+- [x] Formatos soportados:
+  - **Input**: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG
+  - **Output**: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF
 
 ### 🔄 En Desarrollo
 
