@@ -78,6 +78,7 @@ export function ActionSidebar({
     null,
   );
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const actions = getActionsForCategory(category);
   const conversionOptions = getConversionOptions(category);
@@ -335,14 +336,16 @@ export function ActionSidebar({
   };
 
   const handleCancelConversion = async () => {
-    if (!currentJobId) return;
+    if (!currentJobId || isCancelling) return;
+
+    setIsCancelling(true);
 
     try {
       await cancelJob(currentJobId, { reason: "User cancelled" });
 
       sileo.info({
-        title: "Conversion cancelled",
-        description: "The conversion has been cancelled.",
+        title: "Conversión cancelada",
+        description: "La conversión ha sido cancelada.",
         icon: <X className="size-3.5" />,
         roundness: 16,
         duration: 3000,
@@ -351,21 +354,24 @@ export function ActionSidebar({
       setIsConverting(false);
       setConversionStatus(null);
       setCurrentJobId(null);
+      setIsCancelling(false);
     } catch (error) {
       console.error("Cancel error:", error);
 
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Could not cancel the conversion";
+          : "No se pudo cancelar la conversión";
 
       sileo.error({
-        title: "Cancel error",
+        title: "Error al cancelar",
         description: errorMessage,
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
         duration: 4000,
       });
+
+      setIsCancelling(false);
     }
   };
 
@@ -483,10 +489,20 @@ export function ActionSidebar({
                     variant="outline"
                     size="sm"
                     onClick={handleCancelConversion}
-                    className="w-full gap-2"
+                    disabled={isCancelling}
+                    className="w-full gap-2 hover:scale-[1.02] hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
                   >
-                    <X className="h-4 w-4" />
-                    Cancel
+                    {isCancelling ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Cancelando...
+                      </>
+                    ) : (
+                      <>
+                        <X className="h-4 w-4" />
+                        Cancelar
+                      </>
+                    )}
                   </Button>
                 )}
             </div>
