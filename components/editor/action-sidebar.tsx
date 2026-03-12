@@ -49,6 +49,7 @@ interface ActionSidebarProps {
     actionId: string,
     options?: Record<string, unknown>,
   ) => void;
+  onConversionComplete?: (fileName: string) => void;
   className?: string;
 }
 
@@ -59,6 +60,7 @@ export function ActionSidebar({
   fileId,
   inputFormat,
   onActionSelect,
+  onConversionComplete,
   className,
 }: ActionSidebarProps) {
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export function ActionSidebar({
   const [convertedFileName, setConvertedFileName] = useState<string | null>(
     null,
   );
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const actions = getActionsForCategory(category);
   const conversionOptions = getConversionOptions(category);
@@ -141,8 +144,9 @@ export function ActionSidebar({
     // Para archivos pequeños: proceso simple y directo
     if (!isLargeFile) {
       sileo.info({
-        title: "Converting file",
-        description: `Processing ${fileName}... This will only take a moment.`,
+        title: "Procesando archivo",
+        description:
+          "Deja que nos encarguemos de todo, pronto tendrás tu archivo convertido.",
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
         autopilot: {
@@ -172,23 +176,15 @@ export function ActionSidebar({
             setConversionStatus(status.status);
 
             if (status.status === "completed") {
-              sileo.success({
-                title: "✅ Ready to download!",
-                description: `${fileName} → ${selectedFormat.toUpperCase()}`,
-                icon: <Download className="size-3.5" />,
-                roundness: 16,
-                autopilot: {
-                  expand: 0,
-                  collapse: 4000,
-                },
-                duration: 8000,
-              });
+              const newFileName = `${fileName.split(".")[0]}.${selectedFormat}`;
+              setConvertedFileName(newFileName);
+              onConversionComplete?.(newFileName);
             } else if (status.status === "failed") {
               sileo.error({
-                title: "❌ Conversion failed",
+                title: "Error en la conversión",
                 description:
                   status.error_message ||
-                  "An error occurred while processing your file. Please try again.",
+                  "Ocurrió un error al procesar tu archivo. Por favor, intenta nuevamente.",
                 icon: <AlertCircle className="size-3.5" />,
                 roundness: 16,
                 autopilot: {
@@ -247,8 +243,9 @@ export function ActionSidebar({
 
     try {
       sileo.info({
-        title: "Starting conversion",
-        description: `Processing ${fileName}... You can continue using the app while your file is being processed.`,
+        title: "Procesando archivo",
+        description:
+          "Deja que nos encarguemos de todo, pronto tendrás tu archivo convertido.",
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
         autopilot: {
@@ -275,23 +272,15 @@ export function ActionSidebar({
           setConversionStatus(status.status);
 
           if (status.status === "completed") {
-            sileo.success({
-              title: "✅ Conversion completed",
-              description: `${fileName} → ${selectedFormat.toUpperCase()}`,
-              icon: <Download className="size-3.5" />,
-              roundness: 16,
-              autopilot: {
-                expand: 0,
-                collapse: 3000,
-              },
-              duration: 5000,
-            });
+            const newFileName = `${fileName.split(".")[0]}.${selectedFormat}`;
+            setConvertedFileName(newFileName);
+            onConversionComplete?.(newFileName);
           } else if (status.status === "failed") {
             sileo.error({
-              title: "❌ Conversion failed",
+              title: "Error en la conversión",
               description:
                 status.error_message ||
-                "An error occurred while processing your file. Please try again.",
+                "Ocurrió un error al procesar tu archivo. Por favor, intenta nuevamente.",
               icon: <AlertCircle className="size-3.5" />,
               roundness: 16,
               autopilot: {
@@ -383,6 +372,8 @@ export function ActionSidebar({
   const handleDownload = async () => {
     if (!currentJobId || !selectedFormat) return;
 
+    setIsDownloading(true);
+
     try {
       const blob = await downloadResult(currentJobId, selectedFormat);
       const url = URL.createObjectURL(blob);
@@ -396,14 +387,6 @@ export function ActionSidebar({
       a.click();
       document.body.removeChild(a);
 
-      sileo.success({
-        title: "Download started",
-        description: `Downloading ${fileName.split(".")[0]}.${selectedFormat}`,
-        icon: <Download className="size-3.5" />,
-        roundness: 16,
-        duration: 3000,
-      });
-
       // Reset state after download
       setTimeout(() => {
         if (url) URL.revokeObjectURL(url);
@@ -412,15 +395,18 @@ export function ActionSidebar({
         setCurrentJobId(null);
         setDownloadUrl(null);
         setSelectedFormat("");
+        setIsDownloading(false);
       }, 1000);
     } catch (error) {
       console.error("Download error:", error);
 
       const errorMessage =
-        error instanceof Error ? error.message : "Could not download the file";
+        error instanceof Error
+          ? error.message
+          : "No se pudo descargar el archivo";
 
       sileo.error({
-        title: "Download error",
+        title: "Error al descargar",
         description: errorMessage,
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
@@ -430,6 +416,8 @@ export function ActionSidebar({
         },
         duration: 6000,
       });
+
+      setIsDownloading(false);
     }
   };
 
@@ -546,12 +534,21 @@ export function ActionSidebar({
         <div className="p-4">
           <Button
             variant={isDownloadReady ? "default" : "outline"}
-            className="w-full gap-2"
-            disabled={!isDownloadReady}
+            className="w-full gap-2 h-12 hover:scale-[1.02] transition-transform"
+            disabled={!isDownloadReady || isDownloading}
             onClick={handleDownload}
           >
-            <Download className="h-4 w-4" />
-            Download Result
+            {isDownloading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Descargando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                Download Result
+              </>
+            )}
           </Button>
         </div>
       </aside>

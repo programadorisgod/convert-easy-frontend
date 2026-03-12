@@ -1,9 +1,9 @@
-
 # TODO - Easy Convert Frontend
 
 ## 🎯 Prioridad Alta
 
 ### Features Core
+
 - [x] Implementar conversión real de archivos ✅
   - [x] API backend para conversión ✅
   - [x] Integración con servicio de conversión ✅
@@ -21,8 +21,10 @@
   - [x] Botón de descarga ✅
   - [x] Opción de convertir otro archivo ✅
   - [x] Limpieza de archivo anterior ✅
+- [] Preview Docs (alls)
 
 ### Bugs y Mejoras
+
 - [ ] Validación de tipos de archivo permitidos
 - [ ] Manejo de errores mejorado
 - [ ] Feedback visual cuando archivo es muy grande
@@ -31,18 +33,21 @@
 ## 🔨 Prioridad Media
 
 ### UX/UI
+
 - [ ] Animaciones de transición entre vistas
 - [ ] Loading skeletons
 - [ ] Dark mode mejorado
 - [ ] Mejoras de accesibilidad (ARIA labels, keyboard navigation)
 
 ### Features Adicionales
+
 - [ ] Drag & drop múltiples archivos
 - [ ] Cola de conversión
 - [ ] Historial de conversiones
 - [ ] Presets de conversión guardados
 
 ### Performance
+
 - [ ] Web Workers para procesamiento pesado
 - [ ] Lazy loading de componentes
 - [ ] Optimización de imágenes
@@ -51,6 +56,7 @@
 ## 📝 Prioridad Baja
 
 ### Testing
+
 - [ ] Tests unitarios con Vitest
   - [ ] Tests de utilidades
   - [ ] Tests de componentes
@@ -60,6 +66,7 @@
   - [ ] Flujo de descarga
 
 ### Documentación
+
 - [x] README principal ✅
 - [x] Documentación de arquitectura ✅
 - [x] Documentación de componentes ✅
@@ -70,6 +77,7 @@
 - [ ] Storybook para componentes
 
 ### DevEx
+
 - [ ] Prettier configurado
 - [ ] Husky pre-commit hooks
 - [ ] Conventional commits
@@ -78,24 +86,28 @@
 ## 🚀 Features Futuras (v0.2.0+)
 
 ### Procesamiento Local
+
 - [ ] FFmpeg.wasm para video/audio
 - [ ] Sharp.wasm para imágenes
 - [ ] PDF.js para PDFs
 - [ ] Compresión local
 
 ### Backend
+
 - [ ] API RESTful
 - [ ] Upload con chunks
 - [ ] Queue system
 - [ ] Webhook para notificaciones
 
 ### Seguridad
+
 - [ ] Encriptación end-to-end
 - [ ] Sanitización de archivos
 - [ ] Rate limiting
 - [ ] Content Security Policy
 
 ### Features Avanzadas
+
 - [ ] Conversión por lotes
 - [ ] Compresión inteligente
 - [ ] OCR para documentos
@@ -105,12 +117,14 @@
 - [ ] Templates de conversión
 
 ## 📊 Métricas y Analytics
+
 - [ ] Tracking de conversiones
 - [ ] Error monitoring (Sentry)
 - [ ] Performance monitoring
 - [ ] User analytics (respetuoso con privacidad)
 
 ## 🔄 Refactoring
+
 - [ ] Migrar a Zustand/Jotai para estado (si crece)
 - [ ] Separar lógica de UI
 - [ ] Custom hooks reutilizables
@@ -121,6 +135,7 @@
 ## ✅ Completado
 
 ### Setup Inicial
+
 - [x] Configuración de Next.js 16
 - [x] Setup de TypeScript
 - [x] Configuración de Tailwind
@@ -128,6 +143,7 @@
 - [x] Setup de Sileo
 
 ### Features Implementadas
+
 - [x] Sistema de temas (Light/Dark/Blue)
 - [x] Drag & drop de archivos
 - [x] Detección de tipo de archivo
@@ -147,6 +163,7 @@
 - [x] Descarga de archivos convertidos
 
 ### Fixes
+
 - [x] Error de Suspense en /editor
 - [x] Imports de React optimizados
 - [x] Toast redundante eliminado

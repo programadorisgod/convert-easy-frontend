@@ -1,75 +1,91 @@
-"use client"
+"use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { ArrowLeft, AlertCircle } from "lucide-react"
-import Link from "next/link"
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { ArrowLeft, AlertCircle } from "lucide-react";
+import Link from "next/link";
 
-import { Header } from "@/components/header"
-import { FilePreview } from "@/components/editor/file-preview"
-import { ActionSidebar } from "@/components/editor/action-sidebar"
-import { Button } from "@/components/ui/button"
-import { getFile, createFilePreviewUrl } from "@/lib/file-store"
-import type { FileCategory } from "@/types/file"
+import { Header } from "@/components/header";
+import { FilePreview } from "@/components/editor/file-preview";
+import { ActionSidebar } from "@/components/editor/action-sidebar";
+import { Button } from "@/components/ui/button";
+import { getFile, createFilePreviewUrl } from "@/lib/file-store";
+import type { FileCategory } from "@/types/file";
 
 interface StoredFileInfo {
-  id: string
-  name: string
-  size: number
-  type: string
-  extension: string
-  category: FileCategory
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  extension: string;
+  category: FileCategory;
 }
 
 function EditorContent() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const fileId = searchParams.get("file")
-  
-  const [fileInfo, setFileInfo] = useState<StoredFileInfo | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const fileId = searchParams.get("file");
+
+  const [fileInfo, setFileInfo] = useState<StoredFileInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [convertedFileName, setConvertedFileName] = useState<string | null>(
+    null,
+  );
 
   // Create preview URL for audio/video/image files
   const previewUrl = useMemo(() => {
-    if (!fileInfo) return undefined
-    const file = getFile(fileInfo.id)
-    if (!file) return undefined
-    
+    if (!fileInfo) return undefined;
+    const file = getFile(fileInfo.id);
+    if (!file) return undefined;
+
     // Only create preview URLs for media files
     if (["image", "video", "audio"].includes(fileInfo.category)) {
-      return createFilePreviewUrl(file)
+      return createFilePreviewUrl(file);
     }
-    return undefined
-  }, [fileInfo])
+    return undefined;
+  }, [fileInfo]);
 
   useEffect(() => {
     // Try to get file info from sessionStorage
-    const stored = sessionStorage.getItem("pendingFile")
-    
+    const stored = sessionStorage.getItem("pendingFile");
+
     if (stored) {
       try {
-        const parsed = JSON.parse(stored) as StoredFileInfo
+        const parsed = JSON.parse(stored) as StoredFileInfo;
         if (parsed.id === fileId) {
-          setFileInfo(parsed)
-          setIsLoading(false)
-          return
+          // Verify file exists in memory store
+          const file = getFile(parsed.id);
+          if (file) {
+            setFileInfo(parsed);
+            setIsLoading(false);
+            return;
+          }
+          // File not in memory, clear sessionStorage
+          sessionStorage.removeItem("pendingFile");
         }
       } catch {
         // Invalid JSON, clear it
-        sessionStorage.removeItem("pendingFile")
+        sessionStorage.removeItem("pendingFile");
       }
     }
 
     // No valid file found
-    setError("No file selected. Please upload a file first.")
-    setIsLoading(false)
-  }, [fileId])
+    setError("No file selected. Please upload a file first.");
+    setIsLoading(false);
+  }, [fileId]);
 
-  const handleActionSelect = (actionId: string, options?: Record<string, unknown>) => {
-    console.log("[v0] Action selected:", actionId, options)
+  const handleActionSelect = (
+    actionId: string,
+    options?: Record<string, unknown>,
+  ) => {
+    console.log("[v0] Action selected:", actionId, options);
     // Future: Implement actual file processing
-  }
+  };
+
+  const handleConversionComplete = (fileName: string) => {
+    setConvertedFileName(fileName);
+  };
 
   if (isLoading) {
     return (
@@ -79,7 +95,7 @@ function EditorContent() {
           <p className="mt-4 text-muted-foreground">Loading file...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error || !fileInfo) {
@@ -104,13 +120,13 @@ function EditorContent() {
           </Link>
         </main>
       </div>
-    )
+    );
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      
+
       {/* Editor toolbar */}
       <div className="border-b bg-card px-4 py-2">
         <div className="container mx-auto flex items-center gap-4">
@@ -137,6 +153,7 @@ function EditorContent() {
           fileId={fileInfo.id}
           inputFormat={fileInfo.extension}
           onActionSelect={handleActionSelect}
+          onConversionComplete={handleConversionComplete}
           className="hidden md:flex"
         />
 
@@ -148,6 +165,7 @@ function EditorContent() {
             category={fileInfo.category}
             extension={fileInfo.extension}
             previewUrl={previewUrl}
+            conversionCompletedFileName={convertedFileName}
           />
         </main>
       </div>
@@ -165,7 +183,7 @@ function EditorContent() {
         </Button>
       </div>
     </div>
-  )
+  );
 }
 
 function EditorLoadingFallback() {
@@ -176,7 +194,7 @@ function EditorLoadingFallback() {
         <p className="mt-4 text-muted-foreground">Loading editor...</p>
       </div>
     </div>
-  )
+  );
 }
 
 export default function EditorPage() {
@@ -184,5 +202,5 @@ export default function EditorPage() {
     <Suspense fallback={<EditorLoadingFallback />}>
       <EditorContent />
     </Suspense>
-  )
+  );
 }
