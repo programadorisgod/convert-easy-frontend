@@ -22,11 +22,14 @@ import {
   downloadResult,
   cancelJob,
   pollJobStatus,
+  processImageFile,
 } from "@/lib/api-service";
-import type { JobStatus } from "@/types/api";
+import type { JobStatus, CompressImageRequest } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
   DialogContent,
@@ -49,7 +52,7 @@ interface ActionSidebarProps {
     actionId: string,
     options?: Record<string, unknown>,
   ) => void;
-  onConversionComplete?: (fileName: string) => void;
+  onConversionComplete?: (fileName: string | null) => void;
   className?: string;
 }
 
@@ -67,8 +70,33 @@ export function ActionSidebar({
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<string>("");
 
-  // Conversion state
+  // Compress dialog state
+  const [showCompressDialog, setShowCompressDialog] = useState(false);
+  const [compressLevel, setCompressLevel] = useState<
+    "low" | "balanced" | "strong"
+  >("balanced");
+  const [compressFormat, setCompressFormat] = useState<string>("jpg");
+
+  // Watermark dialog state
+  const [showWatermarkDialog, setShowWatermarkDialog] = useState(false);
+  const [watermarkType, setWatermarkType] = useState<"text" | "logo">("text");
+  const [watermarkText, setWatermarkText] = useState<string>("© 2026 MyBrand");
+  const [watermarkPosition, setWatermarkPosition] = useState<
+    | "top-left"
+    | "top-right"
+    | "center"
+    | "bottom-left"
+    | "bottom-right"
+    | "diagonal"
+  >("bottom-right");
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.7);
+  const [watermarkFontSize, setWatermarkFontSize] = useState<number>(40);
+  const [watermarkColor, setWatermarkColor] = useState<string>("white");
+  const [watermarkFormat, setWatermarkFormat] = useState<string>("jpg");
+
+  // Conversion state (shared by all operations: convert, compress, remove-bg, etc.)
   const [isConverting, setIsConverting] = useState(false);
+  const [currentOperation, setCurrentOperation] = useState<string | null>(null);
   const [conversionStatus, setConversionStatus] = useState<JobStatus | null>(
     null,
   );
@@ -88,6 +116,21 @@ export function ActionSidebar({
 
     if (actionId === "convert") {
       setShowConvertDialog(true);
+      return;
+    }
+
+    if (actionId === "compress") {
+      setShowCompressDialog(true);
+      return;
+    }
+
+    if (actionId === "remove-bg") {
+      handleRemoveBackground();
+      return;
+    }
+
+    if (actionId === "watermark") {
+      setShowWatermarkDialog(true);
       return;
     }
 
@@ -335,6 +378,299 @@ export function ActionSidebar({
     }
   };
 
+  const handleCompress = async () => {
+    if (!compressFormat) {
+      sileo.error({
+        title: "Selecciona un formato",
+        description: "Por favor selecciona un formato de salida.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
+      return;
+    }
+
+    // Get file from store
+    const file = getFile(fileId);
+    if (!file) {
+      sileo.error({
+        title: "Archivo no encontrado",
+        description: "No se pudo encontrar el archivo en memoria.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
+
+    setShowCompressDialog(false);
+    setIsConverting(true);
+    setCurrentOperation("compress");
+    setConversionStatus("processing");
+    setSelectedFormat(compressFormat); // Save output format for download
+
+    try {
+      sileo.info({
+        title: "Comprimiendo imagen",
+        description:
+          "Deja que nos encarguemos de todo, pronto tendrás tu archivo optimizado.",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
+
+      const jobId = await processImageFile(file, inputFormat, "compress", {
+        output_format: compressFormat,
+        level: compressLevel,
+        strip_metadata: true,
+      });
+
+      setCurrentJobId(jobId);
+
+      // Poll for completion
+      await pollJobStatus(jobId, (status) => {
+        setConversionStatus(status.status);
+
+        if (status.status === "completed") {
+          const newFileName = `${fileName.split(".")[0]}_compressed.${compressFormat}`;
+          setConvertedFileName(newFileName);
+          onConversionComplete?.(newFileName);
+        } else if (status.status === "failed") {
+          sileo.error({
+            title: "Error al comprimir",
+            description:
+              status.error_message || "No se pudo comprimir la imagen.",
+            icon: <AlertCircle className="size-3.5" />,
+            roundness: 16,
+            duration: 6000,
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Compress error:", error);
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "No se pudo comprimir la imagen";
+
+      sileo.error({
+        title: "Error al comprimir",
+        description: errorMessage,
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6000,
+      });
+
+      setIsConverting(false);
+      setConversionStatus(null);
+      setCurrentJobId(null);
+      setCurrentOperation(null);
+    }
+
+    if (onActionSelect) {
+      onActionSelect("compress", {
+        level: compressLevel,
+        format: compressFormat,
+      });
+    }
+  };
+
+  const handleRemoveBackground = async () => {
+    // Get file from store
+    const file = getFile(fileId);
+    if (!file) {
+      sileo.error({
+        title: "Archivo no encontrado",
+        description: "No se pudo encontrar el archivo en memoria.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
+
+    setIsConverting(true);
+    setCurrentOperation("remove-background");
+    setConversionStatus("processing");
+    setSelectedFormat("png"); // Save output format for download
+
+    try {
+      sileo.info({
+        title: "Removiendo fondo",
+        description:
+          "Deja que nos encarguemos de todo, pronto tendrás tu imagen sin fondo.",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
+
+      const jobId = await processImageFile(
+        file,
+        inputFormat,
+        "remove-background",
+        {
+          output_format: "png",
+          model: "u2net",
+          alpha_matting: false,
+          strip_metadata: true,
+        },
+      );
+
+      setCurrentJobId(jobId);
+
+      // Poll for completion
+      await pollJobStatus(jobId, (status) => {
+        setConversionStatus(status.status);
+
+        if (status.status === "completed") {
+          const newFileName = `${fileName.split(".")[0]}_no_bg.png`;
+          setConvertedFileName(newFileName);
+          onConversionComplete?.(newFileName);
+        } else if (status.status === "failed") {
+          sileo.error({
+            title: "Error al remover fondo",
+            description:
+              status.error_message ||
+              "No se pudo remover el fondo de la imagen.",
+            icon: <AlertCircle className="size-3.5" />,
+            roundness: 16,
+            duration: 6000,
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Remove background error:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "No se pudo remover el fondo";
+
+      sileo.error({
+        title: "Error al remover fondo",
+        description: errorMessage,
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6000,
+      });
+
+      setIsConverting(false);
+      setConversionStatus(null);
+      setCurrentJobId(null);
+      setCurrentOperation(null);
+    }
+
+    if (onActionSelect) {
+      onActionSelect("remove-bg");
+    }
+  };
+
+  const handleWatermark = async () => {
+    if (watermarkType === "text" && !watermarkText.trim()) {
+      sileo.error({
+        title: "Texto requerido",
+        description: "Por favor ingresa el texto de la marca de agua.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
+      return;
+    }
+
+    // Get file from store
+    const file = getFile(fileId);
+    if (!file) {
+      sileo.error({
+        title: "Archivo no encontrado",
+        description: "No se pudo encontrar el archivo en memoria.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
+
+    setShowWatermarkDialog(false);
+    setIsConverting(true);
+    setCurrentOperation("watermark");
+    setConversionStatus("processing");
+    setSelectedFormat(watermarkFormat); // Save output format for download
+
+    try {
+      sileo.info({
+        title: "Agregando marca de agua",
+        description:
+          "Deja que nos encarguemos de todo, pronto tendrás tu imagen con marca de agua.",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
+
+      const jobId = await processImageFile(file, inputFormat, "watermark", {
+        output_format: watermarkFormat,
+        type: watermarkType,
+        text: watermarkType === "text" ? watermarkText : undefined,
+        logo_path: watermarkType === "logo" ? undefined : undefined, // Logo not supported in frontend yet
+        position: watermarkPosition,
+        opacity: watermarkOpacity,
+        font_size: watermarkFontSize,
+        color: watermarkColor,
+        margin: 20,
+        size_percent: 15,
+        strip_metadata: true,
+      });
+
+      setCurrentJobId(jobId);
+
+      // Poll for completion
+      await pollJobStatus(jobId, (status) => {
+        setConversionStatus(status.status);
+
+        if (status.status === "completed") {
+          const newFileName = `${fileName.split(".")[0]}_watermarked.${watermarkFormat}`;
+          setConvertedFileName(newFileName);
+          onConversionComplete?.(newFileName);
+        } else if (status.status === "failed") {
+          sileo.error({
+            title: "Error al agregar marca de agua",
+            description:
+              status.error_message ||
+              "No se pudo agregar la marca de agua a la imagen.",
+            icon: <AlertCircle className="size-3.5" />,
+            roundness: 16,
+            duration: 6000,
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Watermark error:", error);
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "No se pudo agregar la marca de agua";
+
+      sileo.error({
+        title: "Error al agregar marca de agua",
+        description: errorMessage,
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6000,
+      });
+
+      setIsConverting(false);
+      setConversionStatus(null);
+      setCurrentJobId(null);
+      setCurrentOperation(null);
+    }
+
+    if (onActionSelect) {
+      onActionSelect("watermark", {
+        type: watermarkType,
+        format: watermarkFormat,
+      });
+    }
+  };
+
   const handleCancelConversion = async () => {
     if (!currentJobId || isCancelling) return;
 
@@ -376,7 +712,18 @@ export function ActionSidebar({
   };
 
   const handleDownload = async () => {
-    if (!currentJobId || !selectedFormat) return;
+    if (!currentJobId || !selectedFormat) {
+      console.warn("Download blocked:", { currentJobId, selectedFormat });
+      sileo.error({
+        title: "No se puede descargar",
+        description:
+          "Falta información del archivo procesado. Por favor, vuelve a procesar el archivo.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
 
     setIsDownloading(true);
 
@@ -401,7 +748,10 @@ export function ActionSidebar({
         setCurrentJobId(null);
         setDownloadUrl(null);
         setSelectedFormat("");
+        setConvertedFileName(null);
+        setCurrentOperation(null);
         setIsDownloading(false);
+        onConversionComplete?.(null); // Clear "archivo está listo" message
       }, 1000);
     } catch (error) {
       console.error("Download error:", error);
@@ -615,6 +965,315 @@ export function ActionSidebar({
               Cancel
             </Button>
             <Button onClick={handleConvert}>Convert</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Compress Dialog */}
+      <Dialog open={showCompressDialog} onOpenChange={setShowCompressDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Comprimir Imagen</DialogTitle>
+            <DialogDescription>
+              Reduce el tamaño del archivo manteniendo la calidad óptima.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {/* Compression Level */}
+            <div className="space-y-2">
+              <Label>Nivel de compresión</Label>
+              <RadioGroup
+                value={compressLevel}
+                onValueChange={(value) =>
+                  setCompressLevel(value as "low" | "balanced" | "strong")
+                }
+                className="grid gap-2"
+              >
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="low" id="low" />
+                  <Label
+                    htmlFor="low"
+                    className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                  >
+                    <div>
+                      <div className="font-medium">Baja</div>
+                      <div className="text-xs text-muted-foreground">
+                        10-20% de reducción • Máxima calidad
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="balanced" id="balanced" />
+                  <Label
+                    htmlFor="balanced"
+                    className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                  >
+                    <div>
+                      <div className="font-medium">Balanceada </div>
+                      <div className="text-xs text-muted-foreground">
+                        30-60% de reducción • Recomendada
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="strong" id="strong" />
+                  <Label
+                    htmlFor="strong"
+                    className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                  >
+                    <div>
+                      <div className="font-medium">Fuerte</div>
+                      <div className="text-xs text-muted-foreground">
+                        60-90% de reducción • Máxima compresión
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Output Format */}
+            <div className="space-y-2">
+              <Label>Formato de salida</Label>
+              <RadioGroup
+                value={compressFormat}
+                onValueChange={setCompressFormat}
+                className="grid gap-2"
+              >
+                {["jpg", "png", "webp"].map((format) => (
+                  <div key={format} className="flex items-center space-x-3">
+                    <RadioGroupItem value={format} id={`compress-${format}`} />
+                    <Label
+                      htmlFor={`compress-${format}`}
+                      className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                    >
+                      <div className="font-medium">{format.toUpperCase()}</div>
+                      <span className="text-xs text-muted-foreground">
+                        .{format}
+                      </span>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCompressDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCompress}>Comprimir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Watermark Dialog */}
+      <Dialog open={showWatermarkDialog} onOpenChange={setShowWatermarkDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Agregar Marca de Agua</DialogTitle>
+            <DialogDescription>
+              Protege tu imagen con una marca de agua personalizada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {/* Watermark Type */}
+            <div className="space-y-2">
+              <Label>Tipo de marca de agua</Label>
+              <RadioGroup
+                value={watermarkType}
+                onValueChange={(value) =>
+                  setWatermarkType(value as "text" | "logo")
+                }
+                className="grid gap-2"
+              >
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="text" id="wm-text" />
+                  <Label
+                    htmlFor="wm-text"
+                    className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                  >
+                    <div>
+                      <div className="font-medium">Texto</div>
+                      <div className="text-xs text-muted-foreground">
+                        Agrega texto personalizado
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <RadioGroupItem value="logo" id="wm-logo" disabled />
+                  <Label
+                    htmlFor="wm-logo"
+                    className="flex flex-1 cursor-not-allowed items-center justify-between rounded-md border p-3 opacity-50"
+                  >
+                    <div>
+                      <div className="font-medium">Logo (Próximamente)</div>
+                      <div className="text-xs text-muted-foreground">
+                        Agrega tu logo
+                      </div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Text Input (only for text watermark) */}
+            {watermarkType === "text" && (
+              <div className="space-y-2">
+                <Label htmlFor="wm-text-input">Texto</Label>
+                <Input
+                  id="wm-text-input"
+                  type="text"
+                  value={watermarkText}
+                  onChange={(e) => setWatermarkText(e.target.value)}
+                  placeholder="© 2026 MyBrand"
+                />
+              </div>
+            )}
+
+            {/* Position */}
+            <div className="space-y-2">
+              <Label>Posición</Label>
+              <RadioGroup
+                value={watermarkPosition}
+                onValueChange={(value) => setWatermarkPosition(value as any)}
+                className="grid grid-cols-2 gap-2"
+              >
+                {[
+                  { value: "top-left", label: "Superior Izq." },
+                  { value: "top-right", label: "Superior Der." },
+                  { value: "center", label: "Centro" },
+                  { value: "bottom-left", label: "Inferior Izq." },
+                  { value: "bottom-right", label: "Inferior Der." },
+                  { value: "diagonal", label: "Diagonal" },
+                ].map((pos) => (
+                  <div key={pos.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={pos.value} id={`pos-${pos.value}`} />
+                    <Label
+                      htmlFor={`pos-${pos.value}`}
+                      className="flex flex-1 cursor-pointer rounded-md border p-2 text-xs hover:bg-accent"
+                    >
+                      {pos.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            {/* Opacity Slider */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label>Opacidad</Label>
+                <span className="text-xs text-muted-foreground">
+                  {Math.round(watermarkOpacity * 100)}%
+                </span>
+              </div>
+              <Slider
+                value={[watermarkOpacity]}
+                onValueChange={(values) => setWatermarkOpacity(values[0])}
+                min={0}
+                max={1}
+                step={0.1}
+                className="w-full"
+              />
+            </div>
+
+            {/* Font Size (text only) */}
+            {watermarkType === "text" && (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label>Tamaño de fuente</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {watermarkFontSize}px
+                  </span>
+                </div>
+                <Slider
+                  value={[watermarkFontSize]}
+                  onValueChange={(values) => setWatermarkFontSize(values[0])}
+                  min={20}
+                  max={100}
+                  step={5}
+                  className="w-full"
+                />
+              </div>
+            )}
+
+            {/* Color (text only) */}
+            {watermarkType === "text" && (
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <RadioGroup
+                  value={watermarkColor}
+                  onValueChange={setWatermarkColor}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  {[
+                    { value: "white", label: "Blanco" },
+                    { value: "black", label: "Negro" },
+                    { value: "red", label: "Rojo" },
+                  ].map((color) => (
+                    <div
+                      key={color.value}
+                      className="flex items-center space-x-2"
+                    >
+                      <RadioGroupItem
+                        value={color.value}
+                        id={`color-${color.value}`}
+                      />
+                      <Label
+                        htmlFor={`color-${color.value}`}
+                        className="flex flex-1 cursor-pointer rounded-md border p-2 text-xs hover:bg-accent"
+                      >
+                        {color.label}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
+
+            {/* Output Format */}
+            <div className="space-y-2">
+              <Label>Formato de salida</Label>
+              <RadioGroup
+                value={watermarkFormat}
+                onValueChange={setWatermarkFormat}
+                className="grid gap-2"
+              >
+                {["jpg", "png", "webp"].map((format) => (
+                  <div key={format} className="flex items-center space-x-3">
+                    <RadioGroupItem value={format} id={`wm-format-${format}`} />
+                    <Label
+                      htmlFor={`wm-format-${format}`}
+                      className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                    >
+                      <div className="font-medium">{format.toUpperCase()}</div>
+                      <span className="text-xs text-muted-foreground">
+                        .{format}
+                      </span>
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowWatermarkDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleWatermark}>Agregar Marca de Agua</Button>
           </div>
         </DialogContent>
       </Dialog>

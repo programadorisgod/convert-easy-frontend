@@ -83,7 +83,7 @@ function EditorContent() {
     // Future: Implement actual file processing
   };
 
-  const handleConversionComplete = (fileName: string) => {
+  const handleConversionComplete = (fileName: string | null) => {
     setConvertedFileName(fileName);
   };
 

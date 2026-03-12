@@ -13,6 +13,10 @@ import type {
   CancelJobRequest,
   CancelJobResponse,
   WebSocketMessage,
+  RemoveBackgroundRequest,
+  CompressImageRequest,
+  WatermarkImageRequest,
+  ProcessResponse,
 } from "@/types/api"
 
 // Constants
@@ -368,4 +372,130 @@ export async function pollJobStatus(
   }
 
   throw new Error("Job status polling timeout")
+}
+
+// ============================================================================
+// IMAGE PROCESSING OPERATIONS
+// ============================================================================
+
+/**
+ * Remove background from image using AI
+ */
+export async function removeBackground(
+  request: RemoveBackgroundRequest
+): Promise<ProcessResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/remove-background`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al remover el fondo de la imagen")
+  }
+
+  return response.json()
+}
+
+/**
+ * Compress image to reduce file size
+ */
+export async function compressImage(
+  request: CompressImageRequest
+): Promise<ProcessResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/compress`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al comprimir la imagen")
+  }
+
+  return response.json()
+}
+
+/**
+ * Add watermark (text or logo) to image
+ */
+export async function addWatermark(
+  request: WatermarkImageRequest
+): Promise<ProcessResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/watermark`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al agregar marca de agua")
+  }
+
+  return response.json()
+}
+
+/**
+ * Process image operation (compress, remove-bg, or watermark)
+ * and poll for completion
+ */
+export async function processImageFile(
+  file: File,
+  inputFormat: string,
+  operation: "compress" | "remove-background" | "watermark",
+  operationParams: Partial<CompressImageRequest | RemoveBackgroundRequest | WatermarkImageRequest>,
+  onProgress?: (stage: "uploading" | "processing", progress: number) => void
+): Promise<string> {
+  // Create job for processing (use same output format as input initially)
+  const jobResponse = await createJob({
+    input_format: inputFormat,
+    output_formats: [operationParams.output_format || inputFormat],
+    original_size: file.size,
+    total_chunks: 1,
+  })
+
+  // Upload file
+  await uploadFile(file, jobResponse.job_id, (progress) => {
+    onProgress?.("uploading", progress)
+  })
+
+  // Build request with job_id
+  const request = {
+    ...operationParams,
+    job_id: jobResponse.job_id,
+  }
+
+  // Start the processing operation
+  let response: ProcessResponse
+  
+  switch (operation) {
+    case "compress":
+      response = await compressImage(request as CompressImageRequest)
+      break
+    case "remove-background":
+      response = await removeBackground(request as RemoveBackgroundRequest)
+      break
+    case "watermark":
+      response = await addWatermark(request as WatermarkImageRequest)
+      break
+  }
+
+  onProgress?.("processing", 0)
+
+  return response.job_id
 }

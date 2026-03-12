@@ -95,3 +95,49 @@ export interface WebSocketMessage {
   timestamp: string
   data?: Record<string, unknown>
 }
+
+// ============================================================================
+// IMAGE PROCESSING TYPES
+// ============================================================================
+
+// Remove background request
+export interface RemoveBackgroundRequest {
+  job_id: string
+  output_format: string
+  model?: "u2net" | "u2netp" | "u2net_human_seg" | "isnet-general-use" | "isnet-anime"
+  alpha_matting?: boolean
+  strip_metadata?: boolean
+}
+
+// Compress image request
+export interface CompressImageRequest {
+  job_id: string
+  output_format: string
+  level: "low" | "balanced" | "strong"
+  quality?: number
+  strip_metadata?: boolean
+}
+
+// Watermark image request
+export interface WatermarkImageRequest {
+  job_id: string
+  output_format: string
+  type: "text" | "logo"
+  text?: string
+  font_size?: number
+  color?: string
+  logo_path?: string
+  size_percent?: number
+  position?: "top-left" | "top-right" | "center" | "bottom-left" | "bottom-right" | "diagonal"
+  opacity?: number
+  margin?: number
+  strip_metadata?: boolean
+}
+
+// Process response (shared by all operations)
+export interface ProcessResponse {
+  job_id: string
+  status: JobStatus
+  message: string
+  operation: string
+}
