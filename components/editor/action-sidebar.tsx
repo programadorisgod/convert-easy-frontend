@@ -42,6 +42,13 @@ import { Label } from "@/components/ui/label";
 import type { FileCategory, ConversionOption } from "@/types/file";
 import { useState } from "react";
 
+interface BackgroundJob {
+  id: string;
+  jobId: string;
+  label: string;
+  status: "processing" | "downloading" | "failed";
+}
+
 interface ActionSidebarProps {
   category: FileCategory;
   fileName: string;
@@ -107,6 +114,23 @@ export function ActionSidebar({
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  // Background jobs (compress, remove-bg, watermark) — non-blocking
+  const [backgroundJobs, setBackgroundJobs] = useState<BackgroundJob[]>([]);
+
+  const addBgJob = (jobId: string, label: string) =>
+    setBackgroundJobs((prev) => [
+      ...prev,
+      { id: jobId, jobId, label, status: "processing" },
+    ]);
+
+  const updateBgJob = (jobId: string, status: BackgroundJob["status"]) =>
+    setBackgroundJobs((prev) =>
+      prev.map((j) => (j.id === jobId ? { ...j, status } : j)),
+    );
+
+  const removeBgJob = (jobId: string) =>
+    setBackgroundJobs((prev) => prev.filter((j) => j.id !== jobId));
 
   const actions = getActionsForCategory(category);
   const conversionOptions = getConversionOptions(category);
@@ -404,19 +428,22 @@ export function ActionSidebar({
     }
 
     setShowCompressDialog(false);
-    setIsConverting(true);
-    setCurrentOperation("compress");
-    setConversionStatus("processing");
-    setSelectedFormat(compressFormat); // Save output format for download
+
+    if (onActionSelect) {
+      onActionSelect("compress", {
+        level: compressLevel,
+        format: compressFormat,
+      });
+    }
 
     try {
       sileo.info({
-        title: "Comprimiendo imagen",
+        title: "Procesando archivo",
         description:
-          "Deja que nos encarguemos de todo, pronto tendrás tu archivo optimizado.",
+          "Puedes seguir utilizando la app, te avisaremos cuando esté listo.",
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
-        duration: 3500,
+        duration: 5000,
       });
 
       const jobId = await processImageFile(file, inputFormat, "compress", {
@@ -425,59 +452,63 @@ export function ActionSidebar({
         strip_metadata: true,
       });
 
-      setCurrentJobId(jobId);
+      const outputFormat = compressFormat;
+      addBgJob(jobId, "Comprimir imagen");
 
-      // Poll for completion
-      await pollJobStatus(jobId, (status) => {
-        setConversionStatus(status.status);
-
-        if (status.status === "completed") {
-          const newFileName = `${fileName.split(".")[0]}_compressed.${compressFormat}`;
-          setConvertedFileName(newFileName);
-          onConversionComplete?.(newFileName);
-        } else if (status.status === "failed") {
-          sileo.error({
-            title: "Error al comprimir",
-            description:
-              status.error_message || "No se pudo comprimir la imagen.",
-            icon: <AlertCircle className="size-3.5" />,
-            roundness: 16,
-            duration: 6000,
-          });
-        }
+      const finalStatus = await pollJobStatus(jobId, (status) => {
+        if (status.status === "failed") updateBgJob(jobId, "failed");
       });
+
+      if (finalStatus.status === "completed") {
+        updateBgJob(jobId, "downloading");
+        const newFileName = `${fileName.split(".")[0]}_compressed.${outputFormat}`;
+
+        sileo.success({
+          title: "¡Tu archivo está listo!",
+          description: "El archivo se descargará automáticamente.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(jobId, outputFormat);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        removeBgJob(jobId);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "Error al comprimir",
+          description:
+            finalStatus.error_message || "No se pudo comprimir la imagen.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+        removeBgJob(jobId);
+      }
     } catch (error) {
       console.error("Compress error:", error);
-
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "No se pudo comprimir la imagen";
-
       sileo.error({
         title: "Error al comprimir",
-        description: errorMessage,
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo comprimir la imagen",
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
         duration: 6000,
-      });
-
-      setIsConverting(false);
-      setConversionStatus(null);
-      setCurrentJobId(null);
-      setCurrentOperation(null);
-    }
-
-    if (onActionSelect) {
-      onActionSelect("compress", {
-        level: compressLevel,
-        format: compressFormat,
       });
     }
   };
 
   const handleRemoveBackground = async () => {
-    // Get file from store
     const file = getFile(fileId);
     if (!file) {
       sileo.error({
@@ -490,19 +521,18 @@ export function ActionSidebar({
       return;
     }
 
-    setIsConverting(true);
-    setCurrentOperation("remove-background");
-    setConversionStatus("processing");
-    setSelectedFormat("png"); // Save output format for download
+    if (onActionSelect) {
+      onActionSelect("remove-bg");
+    }
 
     try {
       sileo.info({
-        title: "Removiendo fondo",
+        title: "Procesando archivo",
         description:
-          "Deja que nos encarguemos de todo, pronto tendrás tu imagen sin fondo.",
+          "Puedes seguir utilizando la app, te avisaremos cuando esté listo.",
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
-        duration: 3500,
+        duration: 5000,
       });
 
       const jobId = await processImageFile(
@@ -517,50 +547,59 @@ export function ActionSidebar({
         },
       );
 
-      setCurrentJobId(jobId);
+      addBgJob(jobId, "Remover fondo");
 
-      // Poll for completion
-      await pollJobStatus(jobId, (status) => {
-        setConversionStatus(status.status);
-
-        if (status.status === "completed") {
-          const newFileName = `${fileName.split(".")[0]}_no_bg.png`;
-          setConvertedFileName(newFileName);
-          onConversionComplete?.(newFileName);
-        } else if (status.status === "failed") {
-          sileo.error({
-            title: "Error al remover fondo",
-            description:
-              status.error_message ||
-              "No se pudo remover el fondo de la imagen.",
-            icon: <AlertCircle className="size-3.5" />,
-            roundness: 16,
-            duration: 6000,
-          });
-        }
+      const finalStatus = await pollJobStatus(jobId, (status) => {
+        if (status.status === "failed") updateBgJob(jobId, "failed");
       });
+
+      if (finalStatus.status === "completed") {
+        updateBgJob(jobId, "downloading");
+        const newFileName = `${fileName.split(".")[0]}_no_bg.png`;
+
+        sileo.success({
+          title: "¡Tu archivo está listo!",
+          description: "El archivo se descargará automáticamente.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(jobId, "png");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        removeBgJob(jobId);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "Error al remover fondo",
+          description:
+            finalStatus.error_message ||
+            "No se pudo remover el fondo de la imagen.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+        removeBgJob(jobId);
+      }
     } catch (error) {
       console.error("Remove background error:", error);
-
-      const errorMessage =
-        error instanceof Error ? error.message : "No se pudo remover el fondo";
-
       sileo.error({
         title: "Error al remover fondo",
-        description: errorMessage,
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo remover el fondo",
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
         duration: 6000,
       });
-
-      setIsConverting(false);
-      setConversionStatus(null);
-      setCurrentJobId(null);
-      setCurrentOperation(null);
-    }
-
-    if (onActionSelect) {
-      onActionSelect("remove-bg");
     }
   };
 
@@ -576,7 +615,6 @@ export function ActionSidebar({
       return;
     }
 
-    // Get file from store
     const file = getFile(fileId);
     if (!file) {
       sileo.error({
@@ -590,26 +628,30 @@ export function ActionSidebar({
     }
 
     setShowWatermarkDialog(false);
-    setIsConverting(true);
-    setCurrentOperation("watermark");
-    setConversionStatus("processing");
-    setSelectedFormat(watermarkFormat); // Save output format for download
+
+    if (onActionSelect) {
+      onActionSelect("watermark", {
+        type: watermarkType,
+        format: watermarkFormat,
+      });
+    }
 
     try {
       sileo.info({
-        title: "Agregando marca de agua",
+        title: "Procesando archivo",
         description:
-          "Deja que nos encarguemos de todo, pronto tendrás tu imagen con marca de agua.",
+          "Puedes seguir utilizando la app, te avisaremos cuando esté listo.",
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
-        duration: 3500,
+        duration: 5000,
       });
 
+      const outputFormat = watermarkFormat;
       const jobId = await processImageFile(file, inputFormat, "watermark", {
-        output_format: watermarkFormat,
+        output_format: outputFormat,
         type: watermarkType,
         text: watermarkType === "text" ? watermarkText : undefined,
-        logo_path: watermarkType === "logo" ? undefined : undefined, // Logo not supported in frontend yet
+        logo_path: undefined,
         position: watermarkPosition,
         opacity: watermarkOpacity,
         font_size: watermarkFontSize,
@@ -619,54 +661,58 @@ export function ActionSidebar({
         strip_metadata: true,
       });
 
-      setCurrentJobId(jobId);
+      addBgJob(jobId, "Marca de agua");
 
-      // Poll for completion
-      await pollJobStatus(jobId, (status) => {
-        setConversionStatus(status.status);
-
-        if (status.status === "completed") {
-          const newFileName = `${fileName.split(".")[0]}_watermarked.${watermarkFormat}`;
-          setConvertedFileName(newFileName);
-          onConversionComplete?.(newFileName);
-        } else if (status.status === "failed") {
-          sileo.error({
-            title: "Error al agregar marca de agua",
-            description:
-              status.error_message ||
-              "No se pudo agregar la marca de agua a la imagen.",
-            icon: <AlertCircle className="size-3.5" />,
-            roundness: 16,
-            duration: 6000,
-          });
-        }
+      const finalStatus = await pollJobStatus(jobId, (status) => {
+        if (status.status === "failed") updateBgJob(jobId, "failed");
       });
+
+      if (finalStatus.status === "completed") {
+        updateBgJob(jobId, "downloading");
+        const newFileName = `${fileName.split(".")[0]}_watermarked.${outputFormat}`;
+
+        sileo.success({
+          title: "¡Tu archivo está listo!",
+          description: "El archivo se descargará automáticamente.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(jobId, outputFormat);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        removeBgJob(jobId);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "Error al agregar marca de agua",
+          description:
+            finalStatus.error_message ||
+            "No se pudo agregar la marca de agua a la imagen.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+        removeBgJob(jobId);
+      }
     } catch (error) {
       console.error("Watermark error:", error);
-
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "No se pudo agregar la marca de agua";
-
       sileo.error({
         title: "Error al agregar marca de agua",
-        description: errorMessage,
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo agregar la marca de agua",
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
         duration: 6000,
-      });
-
-      setIsConverting(false);
-      setConversionStatus(null);
-      setCurrentJobId(null);
-      setCurrentOperation(null);
-    }
-
-    if (onActionSelect) {
-      onActionSelect("watermark", {
-        type: watermarkType,
-        format: watermarkFormat,
       });
     }
   };
@@ -861,6 +907,34 @@ export function ActionSidebar({
         )}
 
         <ScrollArea className="flex-1">
+          {/* Background jobs indicator (non-blocking) */}
+          {backgroundJobs.length > 0 && (
+            <div className="px-3 pt-3 pb-2 space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
+                Procesando en segundo plano
+              </p>
+              {backgroundJobs.map((job) => (
+                <div
+                  key={job.id}
+                  className="flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs"
+                >
+                  {job.status === "downloading" ? (
+                    <Download className="h-3.5 w-3.5 shrink-0 text-primary animate-bounce" />
+                  ) : (
+                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
+                  )}
+                  <span className="flex-1 truncate font-medium text-foreground">
+                    {job.label}
+                  </span>
+                  <span className="text-muted-foreground shrink-0">
+                    {job.status === "downloading"
+                      ? "Descargando…"
+                      : "Procesando…"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex flex-col gap-1 p-2">
             {actions.map((action) => (
               <button
