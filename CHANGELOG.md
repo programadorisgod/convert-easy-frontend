@@ -5,11 +5,22 @@ Todos los cambios notables del proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [0.1.1] - 2026-03-13
+
+### ✂️ Agregado - Crop de Imágenes
+
+- Nuevo flujo de recorte para imágenes dentro del editor.
+- Modo avatar/perfil con `react-avatar-editor` y exportación PNG.
+- Modo foto con `react-advanced-cropper` y presets de proporción.
+- El recorte reemplaza el archivo activo en memoria para permitir convertir, comprimir o seguir editando sobre el resultado.
+- Limpieza correcta de preview URLs para evitar fugas al actualizar la imagen activa.
+
 ## [0.1.0] - 2026-03-11
 
 ### 🚀 Agregado - Conversión Real de Imágenes
 
 #### Backend Integration
+
 - **API Service completo** (`lib/api-service.ts`)
   - Integración con Easy Convert API (http://127.0.0.1:8000)
   - Support para archivos pequeños (<10MB) con upload completo
@@ -21,6 +32,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - WebSocket support para updates en tiempo real (preparado)
 
 #### Tipos API
+
 - **API Types completos** (`types/api.ts`)
   - `JobStatus`: Estados de conversión
   - `CreateJobRequest/Response`: Creación de jobs
@@ -32,6 +44,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - `WebSocketMessage`: Mensajes de WebSocket
 
 #### Flujo de Conversión Completo
+
 - **Upload inteligente**: Detecta tamaño y usa chunking automático si >10MB
 - **Progress tracking**: Barra de progreso para upload (0-100%)
 - **Status polling**: Actualización automática cada 1 segundo
@@ -39,7 +52,8 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Descarga automática**: Botón de descarga habilitado al completar
 
 #### UI/UX Mejorado en ActionSidebar
-- **Indicador de progreso**: 
+
+- **Indicador de progreso**:
   - Muestra porcentaje durante upload
   - Spinner animado durante procesamiento
   - Estados claros (Uploading, Processing, Completed, Failed)
@@ -56,6 +70,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - "Download started" con nombre de archivo
 
 #### Integración en Editor
+
 - ActionSidebar actualizado con props `fileId` e `inputFormat`
 - Editor page pasa fileId desde sessionStorage
 - Limpieza automática de archivos después de descarga
@@ -63,6 +78,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ### 🎉 Agregado - Versión Base
 
 #### Core Features
+
 - Sistema de temas (Light/Dark/Blue) con `next-themes`
 - Drag & drop de archivos con `FileDropzone`
 - Detección automática de tipo de archivo por extensión
@@ -74,6 +90,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Toggle de temas con iconos
 
 #### Componentes UI
+
 - `FileDropzone`: Zona de carga con drag & drop
 - `FilePreview`: Preview de archivos con soporte multimedia
 - `ActionSidebar`: Sidebar con acciones disponibles (ahora con conversión real)
@@ -83,6 +100,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - `SileoProvider`: Provider de toasts
 
 #### Utilidades
+
 - `createFileInfo()`: Crear objeto FileInfo desde File
 - `formatFileSize()`: Formatear bytes a KB/MB/GB
 - `getCategoryLabel()`: Obtener etiqueta de categoría
@@ -95,6 +113,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - `getConversionOptions()`: Obtener formatos de conversión
 
 #### API Service Functions
+
 - `createJob()`: Crear job de conversión
 - `uploadCompleteFile()`: Subir archivo completo
 - `uploadChunk()`: Subir chunk individual
@@ -109,6 +128,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - `pollJobStatus()`: Polling automático de status
 
 #### Tipos TypeScript
+
 - `FileCategory`: Tipo de categoría de archivo
 - `FileState`: Estados de un archivo
 - `FileInfo`: Información completa de archivo
@@ -118,6 +138,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Tipos completos de request/response para API
 
 #### UI/UX
+
 - Animaciones al arrastrar archivos
 - Feedback visual en estados hover/drag
 - Toasts con auto-expansión para archivos grandes
@@ -129,6 +150,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Botón de descarga al completar**
 
 #### Configuración
+
 - Next.js 16 con Turbopack
 - App Router de Next.js
 - Tailwind CSS para estilos
@@ -140,6 +162,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ### ✨ Mejorado
 
 #### Optimizaciones
+
 - Imports específicos de React (no `import * as React`)
 - Suspense boundaries para carga asíncrona
 - useMemo para preview URLs
@@ -149,6 +172,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Polling eficiente con timeout de 5 minutos**
 
 #### UX
+
 - Mensaje especial en toast para archivos >10MB
 - Descripción visible en toasts (color de texto mejorado)
 - Duración extendida de toasts para archivos grandes
@@ -158,6 +182,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Iconos contextuales en notificaciones
 
 ### 🔧 Corregido
+
 - Error de prerender en `/editor` por uso de `useSearchParams` sin Suspense
 - Imports de namespace de React reemplazados por imports específicos
 - Toast de "file detected" eliminado (redundante)
@@ -165,6 +190,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Import faltante de `getCategoryLabel` y `formatFileSize`
 
 ### 📚 Documentación
+
 - README.md principal con overview del proyecto
 - ARCHITECTURE.md con arquitectura detallada
 - COMPONENTS.md con guía de componentes
@@ -173,6 +199,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - Estructura de carpeta `/docs` creada
 
 ### 🎨 Diseño
+
 - Paleta de colores Blue personalizada
 - Variables CSS para temas
 - Favicon completo con múltiples tamaños
@@ -183,6 +210,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## [0.1.0] - 2026-03-10
 
 ### 🎉 Versión Inicial
+
 - Setup inicial del proyecto
 - Configuración de Next.js 16
 - Instalación de dependencias base
@@ -194,30 +222,35 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 ## 📋 Próximos Features Planeados
 
 ### v0.2.0 - Conversión Básica
+
 - [ ] Conversión de documentos (PDF ↔ DOCX)
 - [ ] Conversión de imágenes (JPG ↔ PNG ↔ WebP)
 - [ ] API backend para conversión
 - [ ] Indicador de progreso
 
 ### v0.3.0 - Procesamiento Local
+
 - [ ] FFmpeg.wasm para conversión de video/audio
 - [ ] Sharp para procesamiento de imágenes
 - [ ] Compresión de archivos
 - [ ] Web Workers para procesamiento
 
 ### v0.4.0 - Features Avanzados
+
 - [ ] Upload con chunks para archivos grandes
 - [ ] Encriptación end-to-end
 - [ ] Historial de conversiones
 - [ ] Conversión por lotes
 
 ### v0.5.0 - Mejoras de Calidad
+
 - [ ] Tests unitarios con Vitest
 - [ ] Tests E2E con Playwright
 - [ ] Optimizaciones de performance
 - [ ] Mejoras de accesibilidad (a11y)
 
 ### v1.0.0 - Producción
+
 - [ ] Todas las features core implementadas
 - [ ] Testing completo
 - [ ] Documentación final

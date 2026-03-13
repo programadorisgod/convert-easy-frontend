@@ -22,6 +22,15 @@ export interface FileInfo {
   previewUrl?: string
 }
 
+export interface StoredFileInfo {
+  id: string
+  name: string
+  size: number
+  type: string
+  extension: string
+  category: FileCategory
+}
+
 export interface FileAction {
   id: string
   label: string

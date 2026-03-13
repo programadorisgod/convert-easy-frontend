@@ -16,7 +16,8 @@ import {
   getActionsForCategory,
   getConversionOptions,
 } from "@/lib/file-actions";
-import { getFile } from "@/lib/file-store";
+import { createStoredFileInfo } from "@/lib/file-utils";
+import { getFile, storeFile } from "@/lib/file-store";
 import {
   convertFile,
   downloadResult,
@@ -39,7 +40,12 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import type { FileCategory, ConversionOption } from "@/types/file";
+import { ImageCropDialog } from "@/components/editor/image-crop-dialog";
+import type {
+  FileCategory,
+  ConversionOption,
+  StoredFileInfo,
+} from "@/types/file";
 import { useState } from "react";
 
 interface BackgroundJob {
@@ -60,6 +66,7 @@ interface ActionSidebarProps {
     options?: Record<string, unknown>,
   ) => void;
   onConversionComplete?: (fileName: string | null) => void;
+  onFileUpdate?: (fileInfo: StoredFileInfo) => void;
   className?: string;
 }
 
@@ -71,11 +78,13 @@ export function ActionSidebar({
   inputFormat,
   onActionSelect,
   onConversionComplete,
+  onFileUpdate,
   className,
 }: ActionSidebarProps) {
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<string>("");
+  const [showCropDialog, setShowCropDialog] = useState(false);
 
   // Compress dialog state
   const [showCompressDialog, setShowCompressDialog] = useState(false);
@@ -114,6 +123,10 @@ export function ActionSidebar({
   );
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isLocalDownloadReady, setIsLocalDownloadReady] = useState(false);
+  const [localDownloadFileName, setLocalDownloadFileName] = useState<
+    string | null
+  >(null);
 
   // Background jobs (compress, remove-bg, watermark) — non-blocking
   const [backgroundJobs, setBackgroundJobs] = useState<BackgroundJob[]>([]);
@@ -134,6 +147,7 @@ export function ActionSidebar({
 
   const actions = getActionsForCategory(category);
   const conversionOptions = getConversionOptions(category);
+  const currentFile = getFile(fileId);
 
   const handleActionClick = (actionId: string) => {
     setSelectedAction(actionId);
@@ -145,6 +159,23 @@ export function ActionSidebar({
 
     if (actionId === "compress") {
       setShowCompressDialog(true);
+      return;
+    }
+
+    if (actionId === "crop") {
+      if (category === "image") {
+        setShowCropDialog(true);
+        return;
+      }
+
+      sileo.info({
+        title: "Crop para video próximamente",
+        description:
+          "El recorte interactivo ya está listo para imágenes; para video lo conectaremos aparte.",
+        icon: <Info className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
       return;
     }
 
@@ -823,6 +854,63 @@ export function ActionSidebar({
     }
   };
 
+  const handleDownloadCurrentFile = async () => {
+    const file = getFile(fileId);
+
+    if (!file) {
+      sileo.error({
+        title: "No se puede descargar",
+        description:
+          "No encontramos la imagen actual en memoria. Vuelve a subirla o reaplica el cambio.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
+
+    setIsDownloading(true);
+
+    try {
+      const url = URL.createObjectURL(file);
+      const anchor = document.createElement("a");
+
+      anchor.href = url;
+      anchor.download = file.name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      sileo.success({
+        title: "Descarga iniciada",
+        description: `${file.name} se está descargando.`,
+        icon: <Download className="size-3.5" />,
+        roundness: 16,
+        duration: 2500,
+      });
+
+      setIsLocalDownloadReady(false);
+      setLocalDownloadFileName(null);
+    } catch (error) {
+      console.error("Current file download error:", error);
+
+      sileo.error({
+        title: "Error al descargar",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo descargar la imagen actual.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 5000,
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const getStatusText = () => {
     if (!conversionStatus) return "";
 
@@ -845,6 +933,61 @@ export function ActionSidebar({
   };
 
   const isDownloadReady = conversionStatus === "completed" && currentJobId;
+  const hasPriorityLocalDownload = isLocalDownloadReady && Boolean(currentFile);
+  const canDownloadCurrentFile = Boolean(currentFile) && !isConverting;
+  const downloadButtonLabel = hasPriorityLocalDownload
+    ? "Descargar imagen recortada"
+    : isDownloadReady
+      ? "Download Result"
+      : category === "image"
+        ? "Descargar imagen"
+        : "Descargar archivo";
+  const handlePrimaryDownload = hasPriorityLocalDownload
+    ? handleDownloadCurrentFile
+    : isDownloadReady
+      ? handleDownload
+      : handleDownloadCurrentFile;
+  const isDownloadDisabled = hasPriorityLocalDownload
+    ? isDownloading
+    : isDownloadReady
+      ? isDownloading
+      : !canDownloadCurrentFile || isDownloading;
+
+  const handleCropApply = async (
+    croppedFile: File,
+    mode: "avatar" | "image",
+  ) => {
+    storeFile(fileId, croppedFile);
+
+    const updatedFileInfo = createStoredFileInfo(croppedFile, fileId);
+    onFileUpdate?.(updatedFileInfo);
+    onConversionComplete?.(null);
+
+    // Reset conversion/download job state so the UI focuses on the new local file.
+    setIsConverting(false);
+    setConversionStatus(null);
+    setCurrentJobId(null);
+    setSelectedFormat("");
+    setDownloadUrl(null);
+    setIsLocalDownloadReady(true);
+    setLocalDownloadFileName(croppedFile.name);
+
+    sileo.success({
+      title: "Recorte aplicado",
+      description:
+        mode === "avatar"
+          ? "Avatar listo. Descárgalo cuando quieras."
+          : "Imagen recortada lista para descargar.",
+      icon: <Sparkles className="size-3.5" />,
+      roundness: 16,
+      duration: 2800,
+    });
+
+    onActionSelect?.("crop", {
+      mode,
+      outputFormat: updatedFileInfo.extension,
+    });
+  };
 
   return (
     <>
@@ -972,11 +1115,20 @@ export function ActionSidebar({
         <Separator />
 
         <div className="p-4">
+          {hasPriorityLocalDownload && (
+            <p className="mb-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
+              Imagen lista: {localDownloadFileName ?? "archivo recortado"}
+            </p>
+          )}
           <Button
-            variant={isDownloadReady ? "default" : "outline"}
+            variant={
+              hasPriorityLocalDownload || isDownloadReady
+                ? "default"
+                : "outline"
+            }
             className="w-full gap-2 h-12 hover:scale-[1.02] transition-transform"
-            disabled={!isDownloadReady || isDownloading}
-            onClick={handleDownload}
+            disabled={isDownloadDisabled}
+            onClick={handlePrimaryDownload}
           >
             {isDownloading ? (
               <>
@@ -986,7 +1138,7 @@ export function ActionSidebar({
             ) : (
               <>
                 <Download className="h-4 w-4" />
-                Download Result
+                {downloadButtonLabel}
               </>
             )}
           </Button>
@@ -1042,6 +1194,15 @@ export function ActionSidebar({
           </div>
         </DialogContent>
       </Dialog>
+
+      {currentFile && (
+        <ImageCropDialog
+          open={showCropDialog}
+          onOpenChange={setShowCropDialog}
+          file={currentFile}
+          onApply={handleCropApply}
+        />
+      )}
 
       {/* Compress Dialog */}
       <Dialog open={showCompressDialog} onOpenChange={setShowCompressDialog}>

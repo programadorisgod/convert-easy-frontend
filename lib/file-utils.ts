@@ -1,4 +1,4 @@
-import type { FileCategory, FileInfo } from "@/types/file"
+import type { FileCategory, FileInfo, StoredFileInfo } from "@/types/file"
 
 const EXTENSION_MAP: Record<string, FileCategory> = {
   // Documents
@@ -62,17 +62,25 @@ export function getFileCategory(extension: string): FileCategory {
   return EXTENSION_MAP[extension] || "unknown"
 }
 
-export function createFileInfo(file: File): FileInfo {
+export function createStoredFileInfo(file: File, id: string): StoredFileInfo {
   const extension = getFileExtension(file.name)
   const category = getFileCategory(extension)
-  
+
   return {
-    id: crypto.randomUUID(),
+    id,
     name: file.name,
     size: file.size,
     type: file.type,
     extension,
     category,
+  }
+}
+
+export function createFileInfo(file: File, id: string = crypto.randomUUID()): FileInfo {
+  const storedFileInfo = createStoredFileInfo(file, id)
+
+  return {
+    ...storedFileInfo,
     file,
   }
 }

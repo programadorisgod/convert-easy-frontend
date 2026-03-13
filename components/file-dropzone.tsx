@@ -1,13 +1,25 @@
-"use client"
+"use client";
 
-import { useRouter } from "next/navigation"
-import { Upload, FileText, Image, Film, Music, File } from "lucide-react"
+import { useRouter } from "next/navigation";
+import { Upload, FileText, Image, Film, Music, File } from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { createFileInfo, formatFileSize, getCategoryLabel } from "@/lib/file-utils"
-import { storeFile } from "@/lib/file-store"
-import type { FileInfo, FileCategory } from "@/types/file"
-import { ChangeEvent, DragEvent, ElementType, useCallback, useRef, useState } from "react"
+import { cn } from "@/lib/utils";
+import {
+  createFileInfo,
+  createStoredFileInfo,
+  formatFileSize,
+  getCategoryLabel,
+} from "@/lib/file-utils";
+import { storeFile } from "@/lib/file-store";
+import type { FileInfo, FileCategory } from "@/types/file";
+import {
+  ChangeEvent,
+  DragEvent,
+  ElementType,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 
 const CATEGORY_ICONS: Record<FileCategory, ElementType> = {
   document: FileText,
@@ -15,81 +27,83 @@ const CATEGORY_ICONS: Record<FileCategory, ElementType> = {
   video: Film,
   audio: Music,
   unknown: File,
-}
+};
 
 interface FileDropzoneProps {
-  onFileSelect?: (file: FileInfo) => void
-  className?: string
+  onFileSelect?: (file: FileInfo) => void;
+  className?: string;
 }
 
 export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
-  const router = useRouter()
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(true)
-  }, [])
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
 
   const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
-  }, [])
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
 
-  const processFile = useCallback((file: File) => {
-    const fileInfo = createFileInfo(file)
-    setSelectedFile(fileInfo)
+  const processFile = useCallback(
+    (file: File) => {
+      const fileInfo = createFileInfo(file);
+      setSelectedFile(fileInfo);
 
-    // Store the actual file for preview purposes
-    storeFile(fileInfo.id, file)
+      // Store the actual file for preview purposes
+      storeFile(fileInfo.id, file);
 
-    if (onFileSelect) {
-      onFileSelect(fileInfo)
-    }
+      if (onFileSelect) {
+        onFileSelect(fileInfo);
+      }
 
-    // Store file info in sessionStorage for the editor
-    sessionStorage.setItem("pendingFile", JSON.stringify({
-      id: fileInfo.id,
-      name: fileInfo.name,
-      size: fileInfo.size,
-      type: fileInfo.type,
-      extension: fileInfo.extension,
-      category: fileInfo.category,
-    }))
+      // Store file info in sessionStorage for the editor
+      sessionStorage.setItem(
+        "pendingFile",
+        JSON.stringify(createStoredFileInfo(file, fileInfo.id)),
+      );
 
-    // Navigate to editor
-    router.push(`/editor?file=${fileInfo.id}`)
-  }, [onFileSelect, router])
+      // Navigate to editor
+      router.push(`/editor?file=${fileInfo.id}`);
+    },
+    [onFileSelect, router],
+  );
 
-  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
 
-    const files = e.dataTransfer?.files
-    if (files && files.length > 0) {
-      processFile(files[0])
-    }
-  }, [processFile])
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) {
+        processFile(files[0]);
+      }
+    },
+    [processFile],
+  );
 
   const handleClick = () => {
-    inputRef.current?.click()
-  }
+    inputRef.current?.click();
+  };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
+    const files = e.target.files;
     if (files && files.length > 0) {
-      processFile(files[0])
+      processFile(files[0]);
     }
-  }
+  };
 
-  const IconComponent = selectedFile 
-    ? CATEGORY_ICONS[selectedFile.category] 
-    : Upload
+  const IconComponent = selectedFile
+    ? CATEGORY_ICONS[selectedFile.category]
+    : Upload;
 
   return (
     <div
@@ -98,19 +112,19 @@ export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
-          handleClick()
+          handleClick();
         }
       }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        "relative flex min-h-[400px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all duration-200",
+        "relative flex min-h-100 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all duration-200",
         isDragOver
           ? "border-primary bg-primary/5 scale-[1.02]"
           : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
         selectedFile && "border-primary bg-primary/5",
-        className
+        className,
       )}
     >
       <input
@@ -126,7 +140,7 @@ export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
           "mb-6 flex h-20 w-20 items-center justify-center rounded-full transition-all duration-200",
           isDragOver || selectedFile
             ? "bg-primary/10 text-primary"
-            : "bg-muted text-muted-foreground"
+            : "bg-muted text-muted-foreground",
         )}
       >
         <IconComponent className="h-10 w-10" />
@@ -138,16 +152,17 @@ export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
             {selectedFile.name}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {getCategoryLabel(selectedFile.category)} - {formatFileSize(selectedFile.size)}
+            {getCategoryLabel(selectedFile.category)} -{" "}
+            {formatFileSize(selectedFile.size)}
           </p>
-          <p className="mt-3 text-sm text-primary">
-            Redirecting to editor...
-          </p>
+          <p className="mt-3 text-sm text-primary">Redirecting to editor...</p>
         </div>
       ) : (
         <div className="text-center">
           <h3 className="text-xl font-semibold text-foreground">
-            {isDragOver ? "Drop your file here" : "Drag your file and choose what to do"}
+            {isDragOver
+              ? "Drop your file here"
+              : "Drag your file and choose what to do"}
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
             or click to browse your files
@@ -173,5 +188,5 @@ export function FileDropzone({ onFileSelect, className }: FileDropzoneProps) {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -22,6 +22,10 @@
   - [x] Opción de convertir otro archivo ✅
   - [x] Limpieza de archivo anterior ✅
 - [] Preview Docs (alls)
+- [x] Crop para imagenes listo ✅
+  - [x] Modo avatar/perfil con react-avatar-editor ✅
+  - [x] Modo foto normal con react-advanced-cropper ✅
+  - [x] Reemplazo del archivo activo tras aplicar el recorte ✅
 
 ### Bugs y Mejoras
 

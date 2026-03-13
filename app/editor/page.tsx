@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -9,17 +9,12 @@ import { Header } from "@/components/header";
 import { FilePreview } from "@/components/editor/file-preview";
 import { ActionSidebar } from "@/components/editor/action-sidebar";
 import { Button } from "@/components/ui/button";
-import { getFile, createFilePreviewUrl } from "@/lib/file-store";
-import type { FileCategory } from "@/types/file";
-
-interface StoredFileInfo {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  extension: string;
-  category: FileCategory;
-}
+import {
+  createFilePreviewUrl,
+  getFile,
+  revokeFilePreviewUrl,
+} from "@/lib/file-store";
+import type { StoredFileInfo } from "@/types/file";
 
 function EditorContent() {
   const searchParams = useSearchParams();
@@ -32,18 +27,26 @@ function EditorContent() {
   const [convertedFileName, setConvertedFileName] = useState<string | null>(
     null,
   );
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
 
-  // Create preview URL for audio/video/image files
-  const previewUrl = useMemo(() => {
-    if (!fileInfo) return undefined;
-    const file = getFile(fileInfo.id);
-    if (!file) return undefined;
-
-    // Only create preview URLs for media files
-    if (["image", "video", "audio"].includes(fileInfo.category)) {
-      return createFilePreviewUrl(file);
+  useEffect(() => {
+    if (!fileInfo || !["image", "video", "audio"].includes(fileInfo.category)) {
+      setPreviewUrl(undefined);
+      return;
     }
-    return undefined;
+
+    const file = getFile(fileInfo.id);
+    if (!file) {
+      setPreviewUrl(undefined);
+      return;
+    }
+
+    const nextPreviewUrl = createFilePreviewUrl(file);
+    setPreviewUrl(nextPreviewUrl);
+
+    return () => {
+      revokeFilePreviewUrl(nextPreviewUrl);
+    };
   }, [fileInfo]);
 
   useEffect(() => {
@@ -85,6 +88,12 @@ function EditorContent() {
 
   const handleConversionComplete = (fileName: string | null) => {
     setConvertedFileName(fileName);
+  };
+
+  const handleFileUpdate = (updatedFileInfo: StoredFileInfo) => {
+    sessionStorage.setItem("pendingFile", JSON.stringify(updatedFileInfo));
+    setConvertedFileName(null);
+    setFileInfo(updatedFileInfo);
   };
 
   if (isLoading) {
@@ -154,6 +163,7 @@ function EditorContent() {
           inputFormat={fileInfo.extension}
           onActionSelect={handleActionSelect}
           onConversionComplete={handleConversionComplete}
+          onFileUpdate={handleFileUpdate}
           className="hidden md:flex"
         />
 
