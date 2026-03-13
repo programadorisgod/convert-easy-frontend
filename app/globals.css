@@ -2,6 +2,7 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import 'react-advanced-cropper/dist/style.css';
+@import '@uiw/react-markdown-preview/markdown.css';
 
 @custom-variant dark (&:is(.dark *));
 @custom-variant blue (&:is(.blue *));

@@ -15,6 +15,12 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - El recorte reemplaza el archivo activo en memoria para permitir convertir, comprimir o seguir editando sobre el resultado.
 - Limpieza correcta de preview URLs para evitar fugas al actualizar la imagen activa.
 
+### 📄 Agregado - Preview de Documentos
+
+- Preview de PDFs con `@embedpdf/react-pdf-viewer` dentro del editor.
+- Preview de formatos Office/HTML/TXT/imagen documental con `react-doc-viewer`.
+- Activación de URLs locales de preview para categoría `document` (igual que multimedia).
+
 ## [0.1.0] - 2026-03-11
 
 ### 🚀 Agregado - Conversión Real de Imágenes

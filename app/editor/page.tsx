@@ -30,7 +30,10 @@ function EditorContent() {
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!fileInfo || !["image", "video", "audio"].includes(fileInfo.category)) {
+    if (
+      !fileInfo ||
+      !["image", "video", "audio", "document"].includes(fileInfo.category)
+    ) {
       setPreviewUrl(undefined);
       return;
     }

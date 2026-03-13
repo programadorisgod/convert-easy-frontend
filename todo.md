@@ -21,7 +21,9 @@
   - [x] Botón de descarga ✅
   - [x] Opción de convertir otro archivo ✅
   - [x] Limpieza de archivo anterior ✅
-- [] Preview Docs (alls)
+- [x] Preview Docs (all formats) ✅
+  - [x] PDF preview con @embedpdf/react-pdf-viewer ✅
+  - [x] Office/Text/Image docs preview con react-doc-viewer ✅
 - [x] Crop para imagenes listo ✅
   - [x] Modo avatar/perfil con react-avatar-editor ✅
   - [x] Modo foto normal con react-advanced-cropper ✅
