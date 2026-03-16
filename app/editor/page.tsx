@@ -2,13 +2,20 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
 import { Header } from "@/components/header";
 import { FilePreview } from "@/components/editor/file-preview";
 import { ActionSidebar } from "@/components/editor/action-sidebar";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   createFilePreviewUrl,
   getFile,
@@ -171,7 +178,7 @@ function EditorContent() {
         />
 
         {/* Main preview area */}
-        <main className="flex flex-1 flex-col overflow-auto p-6">
+        <main className="flex flex-1 flex-col overflow-auto p-3 md:p-6">
           <FilePreview
             name={fileInfo.name}
             size={fileInfo.size}
@@ -184,16 +191,33 @@ function EditorContent() {
       </div>
 
       {/* Mobile action bar */}
-      <div className="flex gap-2 border-t bg-card p-4 md:hidden overflow-x-auto">
-        <Button variant="default" size="sm" className="shrink-0">
-          Convert
-        </Button>
-        <Button variant="outline" size="sm" className="shrink-0">
-          Compress
-        </Button>
-        <Button variant="outline" size="sm" className="shrink-0">
-          Optimize
-        </Button>
+      <div className="border-t bg-card p-3 md:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button className="w-full gap-2" size="sm">
+              <SlidersHorizontal className="h-4 w-4" />
+              Abrir acciones
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[88vh] p-0">
+            <SheetHeader className="border-b pb-3">
+              <SheetTitle>Acciones del archivo</SheetTitle>
+            </SheetHeader>
+            <div className="h-[calc(88vh-56px)] overflow-hidden">
+              <ActionSidebar
+                category={fileInfo.category}
+                fileName={fileInfo.name}
+                fileSize={fileInfo.size}
+                fileId={fileInfo.id}
+                inputFormat={fileInfo.extension}
+                onActionSelect={handleActionSelect}
+                onConversionComplete={handleConversionComplete}
+                onFileUpdate={handleFileUpdate}
+                className="flex h-full w-full border-0"
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );
