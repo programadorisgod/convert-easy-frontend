@@ -44,27 +44,85 @@ export const FILE_ACTIONS: FileAction[] = [
     category: ["document"],
   },
   {
-    id: "protect",
-    label: "Protect",
-    description: "Add password protection",
-    icon: Lock,
-    category: ["document"],
-  },
-  {
-    id: "unlock",
-    label: "Unlock",
-    description: "Remove password protection",
-    icon: Unlock,
-    category: ["document"],
-  },
-  {
     id: "compress",
     label: "Compress",
     description: "Reduce file size",
     icon: Archive,
     category: ["document", "image", "video"],
   },
-  
+  {
+    id: "pdf-merge",
+    label: "Merge PDFs",
+    description: "Combine this PDF with additional PDFs",
+    icon: Layers,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-split",
+    label: "Split PDF",
+    description: "Create a new PDF from a page range",
+    icon: Scissors,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-extract-pages",
+    label: "Extract Pages",
+    description: "Extract specific pages into a new PDF",
+    icon: Scissors,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-delete-pages",
+    label: "Delete Pages",
+    description: "Remove selected pages from the PDF",
+    icon: Eraser,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-metadata",
+    label: "Update Metadata",
+    description: "Update Title, Author, Subject, etc.",
+    icon: PenTool,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-encrypt",
+    label: "Encrypt PDF",
+    description: "Protect the PDF with a password",
+    icon: Lock,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-decrypt",
+    label: "Decrypt PDF",
+    description: "Remove password protection from the PDF",
+    icon: Unlock,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-add-image",
+    label: "Insert Image",
+    description: "Insert an image using coordinates",
+    icon: Stamp,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+  {
+    id: "pdf-add-annotation",
+    label: "Add Annotations",
+    description: "Add notes at specific PDF coordinates",
+    icon: Sparkles,
+    category: ["document"],
+    inputFormats: ["pdf"],
+  },
+
   // Image actions
   {
     id: "optimize",
@@ -83,7 +141,7 @@ export const FILE_ACTIONS: FileAction[] = [
   {
     id: "remove-bg",
     label: "Remove Background",
-    description: "Remove image background",
+    description: "Available soon",
     icon: Eraser,
     category: ["image"],
   },
@@ -142,8 +200,23 @@ export const FILE_ACTIONS: FileAction[] = [
   },
 ]
 
-export function getActionsForCategory(category: FileCategory): FileAction[] {
-  return FILE_ACTIONS.filter((action) => action.category.includes(category))
+export function getActionsForCategory(
+  category: FileCategory,
+  inputFormat?: string,
+): FileAction[] {
+  const normalizedInputFormat = inputFormat?.toLowerCase()
+
+  return FILE_ACTIONS.filter((action) => {
+    if (!action.category.includes(category)) {
+      return false
+    }
+
+    if (!action.inputFormats || !normalizedInputFormat) {
+      return true
+    }
+
+    return action.inputFormats.includes(normalizedInputFormat)
+  })
 }
 
 // Conversion options by file category

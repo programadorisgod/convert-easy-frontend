@@ -19,6 +19,7 @@ import type {
   ProcessDocumentResponse,
   WatermarkImageRequest,
   ProcessResponse,
+  PdfProcessResponse,
 } from "@/types/api"
 
 // Constants
@@ -82,6 +83,21 @@ interface ConvertFileOptions {
   useDocumentEndpoint?: boolean
   preferredDocumentEngine?: "auto" | "pandoc" | "libreoffice"
 }
+
+type PdfOperationRoute =
+  | "merge"
+  | "split-range"
+  | "extract-pages"
+  | "delete-pages"
+  | "rotate"
+  | "metadata"
+  | "encrypt"
+  | "decrypt"
+  | "add-text"
+  | "add-image"
+  | "draw-rectangle"
+  | "add-annotation"
+  | "set-mediabox"
 
 /**
  * Process document conversion using the document processing pipeline.
@@ -539,4 +555,101 @@ export async function processImageFile(
   onProgress?.("processing", 0)
 
   return response.job_id
+}
+
+/**
+ * Process PDF operation (merge/split/delete/rotate/metadata/encrypt/decrypt/edit)
+ */
+export async function processPdfFile(
+  file: File,
+  inputFormat: string,
+  operation: PdfOperationRoute,
+  operationParams: Record<string, unknown>,
+  outputFormat: string = "pdf",
+  onProgress?: (stage: "uploading" | "processing", progress: number) => void,
+): Promise<string> {
+  const jobResponse = await createJob({
+    input_format: inputFormat,
+    output_formats: [outputFormat],
+    original_size: file.size,
+    total_chunks: 1,
+  })
+
+  await uploadFile(file, jobResponse.job_id, (progress) => {
+    onProgress?.("uploading", progress)
+  })
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/pdf/${operation}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...operationParams,
+        job_id: jobResponse.job_id,
+      }),
+    },
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al procesar la operación PDF")
+  }
+
+  const payload = (await response.json()) as PdfProcessResponse
+  onProgress?.("processing", 0)
+
+  return payload.job_id
+}
+
+/**
+ * Create an upload job and upload a file, returning the job ID.
+ * Useful for operations like PDF merge that need multiple uploaded source jobs.
+ */
+export async function createUploadedJob(
+  file: File,
+  inputFormat: string,
+  outputFormat: string = inputFormat,
+): Promise<string> {
+  const jobResponse = await createJob({
+    input_format: inputFormat,
+    output_formats: [outputFormat],
+    original_size: file.size,
+    total_chunks: 1,
+  })
+
+  await uploadFile(file, jobResponse.job_id)
+
+  return jobResponse.job_id
+}
+
+/**
+ * Queue PDF merge using pre-uploaded job IDs in the desired order.
+ * The first job ID is treated as primary, the rest as source_job_ids.
+ */
+export async function queuePdfMergeFromJobs(
+  primaryJobId: string,
+  sourceJobIds: string[],
+): Promise<string> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/pdf/merge`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        job_id: primaryJobId,
+        source_job_ids: sourceJobIds,
+      }),
+    },
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al encolar la unión de PDFs")
+  }
+
+  const payload = (await response.json()) as PdfProcessResponse
+  return payload.job_id
 }

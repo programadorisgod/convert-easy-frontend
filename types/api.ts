@@ -142,6 +142,14 @@ export interface ProcessResponse {
   operation: string
 }
 
+export interface PdfProcessResponse {
+  job_id: string
+  status: JobStatus
+  message: string
+  operation: string
+  pdf_config?: Record<string, unknown>
+}
+
 // Document processing request/response
 export interface ProcessDocumentRequest {
   job_id: string

@@ -8,6 +8,7 @@ import {
   Sparkles,
   Loader2,
   X,
+  GripVertical,
 } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -24,6 +25,9 @@ import {
   cancelJob,
   pollJobStatus,
   processImageFile,
+  processPdfFile,
+  createUploadedJob,
+  queuePdfMergeFromJobs,
 } from "@/lib/api-service";
 import type { JobStatus, CompressImageRequest } from "@/types/api";
 import { Button } from "@/components/ui/button";
@@ -53,6 +57,12 @@ interface BackgroundJob {
   jobId: string;
   label: string;
   status: "processing" | "downloading" | "failed" | "cancelling";
+}
+
+interface MergeSourceFile {
+  id: string;
+  file: File;
+  isCurrent?: boolean;
 }
 
 interface ActionSidebarProps {
@@ -109,6 +119,14 @@ export function ActionSidebar({
   const [watermarkFontSize, setWatermarkFontSize] = useState<number>(40);
   const [watermarkColor, setWatermarkColor] = useState<string>("white");
   const [watermarkFormat, setWatermarkFormat] = useState<string>("jpg");
+  const [showMergeOrderDialog, setShowMergeOrderDialog] = useState(false);
+  const [mergeSourceFiles, setMergeSourceFiles] = useState<MergeSourceFile[]>(
+    [],
+  );
+  const [draggingMergeFileId, setDraggingMergeFileId] = useState<string | null>(
+    null,
+  );
+  const [isPreparingMerge, setIsPreparingMerge] = useState(false);
 
   // Conversion state (shared by all operations: convert, compress, remove-bg, etc.)
   const [isConverting, setIsConverting] = useState(false);
@@ -183,9 +201,287 @@ export function ActionSidebar({
     }
   };
 
-  const actions = getActionsForCategory(category);
+  const actions = getActionsForCategory(category, inputFormat);
   const conversionOptions = getConversionOptions(category, inputFormat);
   const currentFile = getFile(fileId);
+
+  const parsePageNumbers = (value: string): number[] =>
+    value
+      .split(",")
+      .map((item) => Number(item.trim()))
+      .filter((num) => Number.isInteger(num) && num > 0);
+
+  const clearMergeSourceFiles = () => {
+    setMergeSourceFiles([]);
+  };
+
+  const selectPdfFiles = (): Promise<File[]> =>
+    new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "application/pdf,.pdf";
+      input.multiple = true;
+
+      input.onchange = () => {
+        const files = Array.from(input.files ?? []);
+        resolve(files);
+      };
+
+      input.click();
+    });
+
+  const reorderMergeFiles = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+
+    setMergeSourceFiles((prev) => {
+      const fromIndex = prev.findIndex((item) => item.id === fromId);
+      const toIndex = prev.findIndex((item) => item.id === toId);
+
+      if (fromIndex < 0 || toIndex < 0) {
+        return prev;
+      }
+
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const handlePdfMerge = async () => {
+    if (!currentFile) {
+      sileo.error({
+        title: "File not found",
+        description: "Could not find the current PDF in memory.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4500,
+      });
+      return;
+    }
+
+    const selectedFiles = await selectPdfFiles();
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const invalidFiles = selectedFiles.filter(
+      (file) => !file.name.toLowerCase().endsWith(".pdf"),
+    );
+
+    if (invalidFiles.length > 0) {
+      sileo.error({
+        title: "Invalid files",
+        description: "Please select PDF files only.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4500,
+      });
+      return;
+    }
+
+    const nextMergeSources: MergeSourceFile[] = [
+      {
+        id: crypto.randomUUID(),
+        file: currentFile,
+        isCurrent: true,
+      },
+      ...selectedFiles.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+      })),
+    ];
+
+    setMergeSourceFiles(nextMergeSources);
+    setShowMergeOrderDialog(true);
+  };
+
+  const handleConfirmMergeOrder = async () => {
+    if (mergeSourceFiles.length === 0 || isPreparingMerge) {
+      return;
+    }
+
+    try {
+      setIsPreparingMerge(true);
+
+      sileo.info({
+        title: "Preparing merge",
+        description: "Uploading PDFs in selected order...",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
+
+      const orderedJobIds: string[] = [];
+      for (const source of mergeSourceFiles) {
+        const jobId = await createUploadedJob(source.file, "pdf", "pdf");
+        orderedJobIds.push(jobId);
+      }
+
+      if (orderedJobIds.length < 2) {
+        throw new Error("Select at least one additional PDF to merge.");
+      }
+
+      const [primaryJobId, ...sourceJobIds] = orderedJobIds;
+      const mergeJobId = await queuePdfMergeFromJobs(
+        primaryJobId,
+        sourceJobIds,
+      );
+
+      setShowMergeOrderDialog(false);
+      clearMergeSourceFiles();
+      setDraggingMergeFileId(null);
+      addBgJob(mergeJobId, "Merge PDFs");
+
+      const finalStatus = await pollJobStatus(mergeJobId, (status) => {
+        if (status.status === "failed") updateBgJob(mergeJobId, "failed");
+      });
+
+      if (finalStatus.status === "completed") {
+        updateBgJob(mergeJobId, "downloading");
+        const fileBaseName =
+          fileName.split(".").slice(0, -1).join(".") || fileName;
+        const newFileName = `${fileBaseName}_merge.pdf`;
+
+        sileo.success({
+          title: "PDF ready",
+          description: "The file will download automatically.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(mergeJobId, "pdf");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        removeBgJob(mergeJobId);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "Merge error",
+          description:
+            finalStatus.error_message || "Could not merge the selected PDFs.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+        removeBgJob(mergeJobId);
+      }
+    } catch (error) {
+      sileo.error({
+        title: "Merge error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not upload selected PDFs for merging.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6000,
+      });
+    } finally {
+      setIsPreparingMerge(false);
+    }
+  };
+
+  const runPdfOperation = async (
+    operation: Parameters<typeof processPdfFile>[2],
+    label: string,
+    params: Record<string, unknown>,
+    outputFormat: string = "pdf",
+    downloadExtension?: string,
+  ) => {
+    if (!currentFile) {
+      sileo.error({
+        title: "File not found",
+        description: "Could not find the PDF in memory.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
+
+    try {
+      sileo.info({
+        title: "Processing PDF",
+        description: "You can keep using the app while this runs.",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 4500,
+      });
+
+      const jobId = await processPdfFile(
+        currentFile,
+        inputFormat,
+        operation,
+        params,
+        outputFormat,
+      );
+
+      addBgJob(jobId, label);
+
+      const finalStatus = await pollJobStatus(jobId, (status) => {
+        if (status.status === "failed") updateBgJob(jobId, "failed");
+      });
+
+      if (finalStatus.status === "completed") {
+        updateBgJob(jobId, "downloading");
+        const fileBaseName =
+          fileName.split(".").slice(0, -1).join(".") || fileName;
+        const suffix = operation.replaceAll("-", "_");
+        const finalExtension = downloadExtension || outputFormat;
+        const newFileName = `${fileBaseName}_${suffix}.${finalExtension}`;
+
+        sileo.success({
+          title: "PDF ready",
+          description: "The file will download automatically.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(jobId, finalExtension);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        removeBgJob(jobId);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "PDF error",
+          description:
+            finalStatus.error_message ||
+            "Could not complete the PDF operation.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6500,
+        });
+        removeBgJob(jobId);
+      }
+    } catch (error) {
+      sileo.error({
+        title: "PDF error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not execute the PDF operation.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6500,
+      });
+    }
+  };
 
   const handleActionClick = (actionId: string) => {
     setSelectedAction(actionId);
@@ -218,12 +514,155 @@ export function ActionSidebar({
     }
 
     if (actionId === "remove-bg") {
-      handleRemoveBackground();
+      sileo.info({
+        title: "Available soon",
+        description: "Remove Background will be available in a future update.",
+        icon: <Info className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
       return;
     }
 
     if (actionId === "watermark") {
       setShowWatermarkDialog(true);
+      return;
+    }
+
+    if (actionId === "pdf-merge") {
+      void handlePdfMerge();
+      return;
+    }
+
+    if (actionId === "pdf-split") {
+      const startRaw = window.prompt("Start page (inclusive):", "1");
+      const endRaw = window.prompt("End page (inclusive):", "2");
+      if (!startRaw || !endRaw) return;
+
+      const startPage = Number(startRaw);
+      const endPage = Number(endRaw);
+
+      if (
+        !Number.isInteger(startPage) ||
+        !Number.isInteger(endPage) ||
+        startPage < 1 ||
+        endPage < startPage
+      ) {
+        sileo.error({
+          title: "Invalid range",
+          description: "Please enter a valid page range (start <= end).",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 4500,
+        });
+        return;
+      }
+
+      runPdfOperation(
+        "split-range",
+        "Split PDF",
+        {
+          start_page: startPage,
+          end_page: endPage,
+        },
+        "pdf",
+        "zip",
+      );
+      return;
+    }
+
+    if (actionId === "pdf-extract-pages") {
+      const raw = window.prompt("Pages to extract (e.g. 1,3,5):", "1");
+      if (!raw) return;
+
+      const pageNumbers = parsePageNumbers(raw);
+      if (pageNumbers.length === 0) {
+        sileo.error({
+          title: "Invalid pages",
+          description: "Please enter at least one valid page number.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 4500,
+        });
+        return;
+      }
+
+      runPdfOperation("extract-pages", "Extract Pages", {
+        page_numbers: pageNumbers,
+      });
+      return;
+    }
+
+    if (actionId === "pdf-delete-pages") {
+      const raw = window.prompt("Pages to delete (e.g. 2,4):", "2");
+      if (!raw) return;
+      const pageNumbers = parsePageNumbers(raw);
+      if (pageNumbers.length === 0) return;
+      runPdfOperation("delete-pages", "Delete pages", {
+        page_numbers: pageNumbers,
+      });
+      return;
+    }
+
+    if (actionId === "pdf-metadata") {
+      const title = window.prompt("PDF title:", "");
+      const author = window.prompt("Author:", "");
+      const subject = window.prompt("Subject:", "");
+      const metadata: Record<string, string> = {};
+      if (title) metadata.Title = title;
+      if (author) metadata.Author = author;
+      if (subject) metadata.Subject = subject;
+      if (Object.keys(metadata).length === 0) return;
+      runPdfOperation("metadata", "Update metadata", { metadata });
+      return;
+    }
+
+    if (actionId === "pdf-encrypt") {
+      const userPassword = window.prompt("Open password:", "");
+      if (!userPassword) return;
+      const ownerPassword = window.prompt("Owner password (optional):", "");
+      runPdfOperation("encrypt", "Encrypt PDF", {
+        user_password: userPassword,
+        owner_password: ownerPassword || undefined,
+      });
+      return;
+    }
+
+    if (actionId === "pdf-decrypt") {
+      const password = window.prompt("Current PDF password:", "");
+      if (!password) return;
+      runPdfOperation("decrypt", "Decrypt PDF", { password });
+      return;
+    }
+
+    if (actionId === "pdf-add-image") {
+      const imageJobId = window.prompt(
+        "image_job_id (already uploaded image):",
+        "",
+      );
+      const pageRaw = window.prompt("Page number (1-based):", "1");
+      if (!imageJobId || !pageRaw) return;
+      runPdfOperation("add-image", "Insert image", {
+        image_job_id: imageJobId,
+        page_number: Number(pageRaw),
+        x0: 50,
+        y0: 50,
+        x1: 200,
+        y1: 200,
+      });
+      return;
+    }
+
+    if (actionId === "pdf-add-annotation") {
+      const pageRaw = window.prompt("Page number (1-based):", "1");
+      const text = window.prompt("Annotation text:", "Note");
+      if (!pageRaw || !text) return;
+      runPdfOperation("add-annotation", "Add annotation", {
+        page_number: Number(pageRaw),
+        text,
+        x: 72,
+        y: 72,
+      });
       return;
     }
 
@@ -1245,6 +1684,93 @@ export function ActionSidebar({
               Cancel
             </Button>
             <Button onClick={handleConvert}>Convert</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showMergeOrderDialog}
+        onOpenChange={(open) => {
+          if (isPreparingMerge) return;
+          setShowMergeOrderDialog(open);
+          if (!open) {
+            setDraggingMergeFileId(null);
+            clearMergeSourceFiles();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Order PDFs before merging</DialogTitle>
+            <DialogDescription>
+              Drag files to define merge order. The PDF in position 1 will be
+              used as the base document.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-2 max-h-72 overflow-auto pr-1">
+            {mergeSourceFiles.map((source, index) => (
+              <div
+                key={source.id}
+                draggable={!isPreparingMerge}
+                onDragStart={() => setDraggingMergeFileId(source.id)}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                }}
+                onDrop={() => {
+                  if (!draggingMergeFileId) return;
+                  reorderMergeFiles(draggingMergeFileId, source.id);
+                }}
+                onDragEnd={() => setDraggingMergeFileId(null)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md border px-3 py-2",
+                  draggingMergeFileId === source.id
+                    ? "border-primary bg-primary/5"
+                    : "bg-card",
+                )}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground w-6 shrink-0">
+                  {index + 1}.
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {source.file.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(source.file.size / (1024 * 1024)).toFixed(2)} MB
+                    {source.isCurrent ? " • Current file" : ""}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={isPreparingMerge}
+              onClick={() => {
+                setShowMergeOrderDialog(false);
+                setDraggingMergeFileId(null);
+                clearMergeSourceFiles();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmMergeOrder}
+              disabled={isPreparingMerge || mergeSourceFiles.length === 0}
+            >
+              {isPreparingMerge ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                "Merge in this order"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
