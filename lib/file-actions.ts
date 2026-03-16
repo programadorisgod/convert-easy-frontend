@@ -181,7 +181,36 @@ export const CONVERSION_OPTIONS: Record<FileCategory, ConversionOption[]> = {
   unknown: [],
 }
 
-export function getConversionOptions(category: FileCategory): ConversionOption[] {
+const SPREADSHEET_INPUT_FORMATS = new Set(["xls", "xlsx"])
+
+const SPREADSHEET_CONVERSION_OPTIONS: ConversionOption[] = [
+  { id: "pdf", label: "PDF", extension: "pdf", description: "Portable Document Format" },
+  { id: "html", label: "HTML", extension: "html", description: "Web Page" },
+  { id: "csv", label: "CSV", extension: "csv", description: "Comma Separated Values" },
+]
+
+const PDF_CONVERSION_OPTIONS: ConversionOption[] = CONVERSION_OPTIONS.document.filter(
+  (option) => option.extension !== "md",
+)
+
+export function getConversionOptions(
+  category: FileCategory,
+  inputFormat?: string,
+): ConversionOption[] {
+  const normalizedInputFormat = inputFormat?.toLowerCase()
+
+  if (
+    category === "document" &&
+    normalizedInputFormat &&
+    SPREADSHEET_INPUT_FORMATS.has(normalizedInputFormat)
+  ) {
+    return SPREADSHEET_CONVERSION_OPTIONS
+  }
+
+  if (category === "document" && normalizedInputFormat === "pdf") {
+    return PDF_CONVERSION_OPTIONS
+  }
+
   return CONVERSION_OPTIONS[category] || []
 }
 

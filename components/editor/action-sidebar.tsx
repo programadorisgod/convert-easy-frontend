@@ -52,7 +52,7 @@ interface BackgroundJob {
   id: string;
   jobId: string;
   label: string;
-  status: "processing" | "downloading" | "failed";
+  status: "processing" | "downloading" | "failed" | "cancelling";
 }
 
 interface ActionSidebarProps {
@@ -127,6 +127,7 @@ export function ActionSidebar({
   const [localDownloadFileName, setLocalDownloadFileName] = useState<
     string | null
   >(null);
+  const [cancellingBgJobs, setCancellingBgJobs] = useState<string[]>([]);
 
   // Background jobs (compress, remove-bg, watermark) — non-blocking
   const [backgroundJobs, setBackgroundJobs] = useState<BackgroundJob[]>([]);
@@ -145,8 +146,45 @@ export function ActionSidebar({
   const removeBgJob = (jobId: string) =>
     setBackgroundJobs((prev) => prev.filter((j) => j.id !== jobId));
 
+  const handleCancelBackgroundJob = async (job: BackgroundJob) => {
+    if (job.status === "downloading" || cancellingBgJobs.includes(job.id)) {
+      return;
+    }
+
+    setCancellingBgJobs((prev) => [...prev, job.id]);
+    updateBgJob(job.id, "cancelling");
+
+    try {
+      await cancelJob(job.jobId, { reason: "User cancelled" });
+      removeBgJob(job.id);
+
+      sileo.info({
+        title: "Proceso cancelado",
+        description: `Se canceló: ${job.label}`,
+        icon: <X className="size-3.5" />,
+        roundness: 16,
+        duration: 3000,
+      });
+    } catch (error) {
+      updateBgJob(job.id, "processing");
+
+      sileo.error({
+        title: "Error al cancelar",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo cancelar el proceso.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 5000,
+      });
+    } finally {
+      setCancellingBgJobs((prev) => prev.filter((id) => id !== job.id));
+    }
+  };
+
   const actions = getActionsForCategory(category);
-  const conversionOptions = getConversionOptions(category);
+  const conversionOptions = getConversionOptions(category, inputFormat);
   const currentFile = getFile(fileId);
 
   const handleActionClick = (actionId: string) => {
@@ -242,8 +280,9 @@ export function ActionSidebar({
     setShowConvertDialog(false);
     const isLargeFile = fileSize > 10 * 1024 * 1024; // 10MB
 
-    // Para archivos pequeños: proceso simple y directo
-    if (!isLargeFile) {
+    // Para archivos pequeños (NO documentos): proceso simple y directo (bloqueante)
+    // Los documentos SIEMPRE usan background jobs sin importar tamaño
+    if (!isLargeFile && category !== "document") {
       sileo.info({
         title: "Procesando archivo",
         description:
@@ -342,21 +381,16 @@ export function ActionSidebar({
       return;
     }
 
-    // Para archivos grandes: mostrar estado de procesamiento
-    setIsConverting(true);
-    setConversionStatus("processing");
+    // Para documentos (cualquier tamaño) o archivos grandes: procesador en segundo plano con descarga automática
+    setShowConvertDialog(false);
 
     try {
       sileo.info({
         title: "Procesando archivo",
         description:
-          "Deja que nos encarguemos de todo, pronto tendrás tu archivo convertido.",
+          "Puedes seguir utilizando la app, te avisaremos cuando esté listo.",
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
-        autopilot: {
-          expand: 0,
-          collapse: 4000,
-        },
         duration: 5000,
       });
 
@@ -365,77 +399,67 @@ export function ActionSidebar({
         file,
         inputFormat,
         [selectedFormat],
-        () => {}, // No progress callback for large files - API doesn't provide progress endpoint
+        () => {}, // No progress callback for large files
         {
           useDocumentEndpoint,
           preferredDocumentEngine: "auto",
         },
       );
 
-      setCurrentJobId(jobId);
+      const outputFormat = selectedFormat;
+      addBgJob(jobId, `Convertir a ${outputFormat.toUpperCase()}`);
 
-      // Poll for status updates
-      await pollJobStatus(
-        jobId,
-        (status) => {
-          setConversionStatus(status.status);
+      // Poll for status updates in background
+      const finalStatus = await pollJobStatus(jobId, (status) => {
+        if (status.status === "failed") updateBgJob(jobId, "failed");
+      });
 
-          if (status.status === "completed") {
-            const newFileName = `${fileName.split(".")[0]}.${selectedFormat}`;
-            setConvertedFileName(newFileName);
-            onConversionComplete?.(newFileName);
-          } else if (status.status === "failed") {
-            sileo.error({
-              title: "Error en la conversión",
-              description:
-                status.error_message ||
-                "Ocurrió un error al procesar tu archivo. Por favor, intenta nuevamente.",
-              icon: <AlertCircle className="size-3.5" />,
-              roundness: 16,
-              autopilot: {
-                expand: 0,
-                collapse: 3000,
-              },
-              duration: 6000,
-            });
-          }
-        },
-        1000, // Poll every second
-        300, // Max 5 minutes
-      );
+      if (finalStatus.status === "completed") {
+        updateBgJob(jobId, "downloading");
+        const newFileName = `${fileName.split(".")[0]}.${outputFormat}`;
+
+        sileo.success({
+          title: "¡Tu archivo está listo!",
+          description: "El archivo se descargará automáticamente.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(jobId, outputFormat);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        removeBgJob(jobId);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "Error en la conversión",
+          description:
+            finalStatus.error_message || "No se pudo convertir el archivo.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+        removeBgJob(jobId);
+      }
     } catch (error) {
       console.error("Conversion error:", error);
-
-      // User-friendly error messages
-      let errorMessage = "Could not convert the file";
-
-      if (error instanceof Error) {
-        // Check if it's a network error
-        if (
-          error.message.includes("NetworkError") ||
-          error.message.includes("fetch")
-        ) {
-          errorMessage =
-            "Could not connect to the server. Please check your internet connection or try again later.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
       sileo.error({
-        title: "🚨 Conversion error",
-        description: errorMessage,
+        title: "Error en la conversión",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo convertir el archivo",
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
-        autopilot: {
-          expand: 0,
-          collapse: 4000,
-        },
-        duration: 8000,
+        duration: 6000,
       });
-      setIsConverting(false);
-      setConversionStatus(null);
-      setCurrentJobId(null);
     }
 
     if (onActionSelect) {
@@ -1082,8 +1106,28 @@ export function ActionSidebar({
                   <span className="text-muted-foreground shrink-0">
                     {job.status === "downloading"
                       ? "Descargando…"
-                      : "Procesando…"}
+                      : job.status === "cancelling"
+                        ? "Cancelando…"
+                        : job.status === "failed"
+                          ? "Falló"
+                          : "Procesando…"}
                   </span>
+                  {(job.status === "processing" ||
+                    job.status === "cancelling") && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancelBackgroundJob(job)}
+                      disabled={job.status === "cancelling"}
+                      className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Cancelar ${job.label}`}
+                    >
+                      {job.status === "cancelling" ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <X className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
