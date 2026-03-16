@@ -1,5 +1,5 @@
 /**
- * API Service for Easy Convert Backend
+ * API Service for Convert Easy Backend
  * Handles file conversion with support for small files and chunked uploads
  */
 
@@ -15,6 +15,8 @@ import type {
   WebSocketMessage,
   RemoveBackgroundRequest,
   CompressImageRequest,
+  ProcessDocumentRequest,
+  ProcessDocumentResponse,
   WatermarkImageRequest,
   ProcessResponse,
 } from "@/types/api"
@@ -30,7 +32,7 @@ const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024 // 10MB
  */
 async function handleApiError(response: Response, defaultMessage: string): Promise<never> {
   const status = response.status
-  
+
   // Try to get error details from response
   let errorDetail = ""
   try {
@@ -74,6 +76,35 @@ async function handleApiError(response: Response, defaultMessage: string): Promi
 
   // For other errors, use detail if available, otherwise use default message
   throw new Error(errorDetail || `${defaultMessage}: ${response.statusText}`)
+}
+
+interface ConvertFileOptions {
+  useDocumentEndpoint?: boolean
+  preferredDocumentEngine?: "auto" | "pandoc" | "libreoffice"
+}
+
+/**
+ * Process document conversion using the document processing pipeline.
+ */
+export async function processDocument(
+  request: ProcessDocumentRequest
+): Promise<ProcessDocumentResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/document`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al procesar el documento")
+  }
+
+  return response.json()
 }
 
 /**
@@ -317,7 +348,8 @@ export async function convertFile(
   file: File,
   inputFormat: string,
   outputFormats: string[],
-  onProgress?: (stage: "uploading" | "converting", progress: number) => void
+  onProgress?: (stage: "uploading" | "converting", progress: number) => void,
+  options?: ConvertFileOptions
 ): Promise<string> {
   // Always use total_chunks: 1 to use the /file endpoint for complete uploads
   // The actual chunking (if needed) is handled by uploadFile() internally
@@ -337,7 +369,16 @@ export async function convertFile(
   })
 
   // Start conversion
-  await startConversion(jobResponse.job_id)
+  if (options?.useDocumentEndpoint) {
+    await processDocument({
+      job_id: jobResponse.job_id,
+      output_format: outputFormats[0],
+      preferred_engine: options.preferredDocumentEngine || "auto",
+    })
+  } else {
+    await startConversion(jobResponse.job_id)
+  }
+
   onProgress?.("converting", 0)
 
   return jobResponse.job_id

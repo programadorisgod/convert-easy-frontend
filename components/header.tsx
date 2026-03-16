@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Menu, Shield } from "lucide-react"
+import Link from "next/link";
+import { Menu, Shield } from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { NAV_CATEGORIES } from "@/lib/nav-config"
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { cn } from "@/lib/utils";
+import { NAV_CATEGORIES } from "@/lib/nav-config";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -14,31 +14,31 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu"
+} from "@/components/ui/navigation-menu";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
+} from "@/components/ui/sheet";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
-import { useState } from "react"
+} from "@/components/ui/accordion";
+import { useState } from "react";
 
 export function Header() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-bold">Easy Convert</span>
+          <span className="text-xl font-bold">Convert Easy</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -58,7 +58,7 @@ export function Header() {
                           <Link
                             href={item.href}
                             className={cn(
-                              "flex select-none items-start gap-3 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                              "flex select-none items-start gap-3 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
                             )}
                           >
                             <item.icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
@@ -97,7 +97,7 @@ export function Header() {
               <SheetHeader>
                 <SheetTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5 text-primary" />
-                  Easy Convert
+                  Convert Easy
                 </SheetTitle>
               </SheetHeader>
               <div className="mt-6">
@@ -134,5 +134,5 @@ export function Header() {
         </div>
       </div>
     </header>
-  )
+  );
 }

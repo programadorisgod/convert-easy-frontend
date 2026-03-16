@@ -28,7 +28,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 #### Backend Integration
 
 - **API Service completo** (`lib/api-service.ts`)
-  - Integración con Easy Convert API (http://127.0.0.1:8000)
+  - Integración con Convert Easy API (http://127.0.0.1:8000)
   - Support para archivos pequeños (<10MB) con upload completo
   - Support para archivos grandes (>10MB) con chunked upload (5MB chunks)
   - Creación de jobs de conversión

@@ -10,7 +10,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Easy Convert - Privacy-First File Conversion",
+  title: "Convert Easy - Privacy-First File Conversion",
   description:
     "Convert your files with privacy. All processing happens locally or with encrypted uploads.",
   generator: "v0.app",

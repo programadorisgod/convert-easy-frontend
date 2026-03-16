@@ -1,4 +1,4 @@
-# TODO - Easy Convert Frontend
+# TODO - Convert Easy Frontend
 
 ## 🎯 Prioridad Alta
 

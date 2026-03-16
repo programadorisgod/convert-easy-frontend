@@ -1,5 +1,5 @@
 /**
- * API Types for Easy Convert Backend
+ * API Types for Convert Easy Backend
  * @see http://127.0.0.1:8000/docs
  */
 
@@ -140,4 +140,21 @@ export interface ProcessResponse {
   status: JobStatus
   message: string
   operation: string
+}
+
+// Document processing request/response
+export interface ProcessDocumentRequest {
+  job_id: string
+  output_format: string
+  preferred_engine?: "auto" | "pandoc" | "libreoffice"
+}
+
+export interface ProcessDocumentResponse {
+  job_id: string
+  status: JobStatus
+  message: string
+  document_config?: {
+    output_format: string
+    preferred_engine: "auto" | "pandoc" | "libreoffice"
+  }
 }

@@ -237,6 +237,8 @@ export function ActionSidebar({
       return;
     }
 
+    const useDocumentEndpoint = category === "document";
+
     setShowConvertDialog(false);
     const isLargeFile = fileSize > 10 * 1024 * 1024; // 10MB
 
@@ -264,6 +266,10 @@ export function ActionSidebar({
           inputFormat,
           [selectedFormat],
           () => {}, // No progress callback for small files
+          {
+            useDocumentEndpoint,
+            preferredDocumentEngine: "auto",
+          },
         );
 
         setCurrentJobId(jobId);
@@ -360,6 +366,10 @@ export function ActionSidebar({
         inputFormat,
         [selectedFormat],
         () => {}, // No progress callback for large files - API doesn't provide progress endpoint
+        {
+          useDocumentEndpoint,
+          preferredDocumentEngine: "auto",
+        },
       );
 
       setCurrentJobId(jobId);

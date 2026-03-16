@@ -1,4 +1,4 @@
-# Easy Convert - Frontend
+# Convert Easy - Frontend
 
 > Herramienta de conversión de archivos con enfoque en privacidad. Todo el procesamiento ocurre en el servidor backend con eliminación inmediata después de la descarga.
 
@@ -9,7 +9,7 @@
 ✅ **Conversión de Imágenes Funcional**
 
 - Upload de archivos pequeños (<10MB) y grandes (>10MB con chunking)
-- Conversión real con Easy Convert API
+- Conversión real con Convert Easy API
 - Progress tracking en tiempo real
 - Cancelación de conversión
 - Descarga automática de resultados

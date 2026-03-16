@@ -1,7 +1,7 @@
-import {  Zap, Lock, Globe } from "lucide-react"
+import { Zap, Lock, Globe } from "lucide-react";
 
-import { Header } from "@/components/header"
-import { FileDropzone } from "@/components/file-dropzone"
+import { Header } from "@/components/header";
+import { FileDropzone } from "@/components/file-dropzone";
 
 const features = [
   {
@@ -19,13 +19,13 @@ const features = [
     title: "Any Format",
     description: "Support for documents, images, videos, and audio files.",
   },
-]
+];
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-12 md:py-16">
         {/* Hero Section */}
         <div className="mx-auto max-w-3xl text-center">
@@ -34,8 +34,8 @@ export default function HomePage() {
             <span className="text-primary">privacy</span>
           </h1>
           <p className="mt-4 text-pretty text-lg text-muted-foreground md:text-xl">
-            Fast, secure file conversion that respects your privacy. 
-            No accounts needed, no files stored.
+            Fast, secure file conversion that respects your privacy. No accounts
+            needed, no files stored.
           </p>
         </div>
 
@@ -47,7 +47,7 @@ export default function HomePage() {
         {/* Features */}
         <div className="mx-auto mt-20 max-w-4xl">
           <h2 className="text-center text-2xl font-semibold text-foreground">
-            Why Easy Convert?
+            Why Convert Easy?
           </h2>
           <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
@@ -73,9 +73,9 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Easy Convert - Privacy-first file conversion</p>
+          <p>Convert Easy - Privacy-first file conversion</p>
         </div>
       </footer>
     </div>
-  )
+  );
 }

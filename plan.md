@@ -1,8 +1,8 @@
 Resumen del Proyecto
-Frontend para Easy Convert - herramienta de conversión de archivos con enfoque en privacidad. Stack: Next.js 16 + shadcn/ui + Sileo (toasts).
+Frontend para Convert Easy - herramienta de conversión de archivos con enfoque en privacidad. Stack: Next.js 16 + shadcn/ui + Sileo (toasts).
 
 1. Sistema de Temas (Light / Dark / Blue)
-Archivos a modificar:
+   Archivos a modificar:
 
 app/globals.css - Añadir tema .blue con la paleta de azules proporcionada
 app/layout.tsx - Integrar ThemeProvider con soporte para 3 temas
@@ -18,9 +18,8 @@ Usar CSS variables con clase .blue similar a .dark
 El tema blue usará los azules como colores primarios/accent
 next-themes ya está instalado - configurar themes: ['light', 'dark', 'blue']
 
-
 2. Librería de Toasts (Sileo)
-Acciones:
+   Acciones:
 
 Instalar sileo via pnpm
 Crear components/sileo-provider.tsx con <Toaster />
@@ -31,7 +30,7 @@ import { sileo } from "sileo"
 sileo.success({ title: "Archivo convertido" })
 
 3. Header y Navegación
-Archivos a crear:
+   Archivos a crear:
 
 components/header.tsx - Header principal
 components/nav-menu.tsx - Menús desplegables por categoría
@@ -50,9 +49,8 @@ Componentes shadcn a usar:
 DropdownMenu para menús desplegables
 NavigationMenu alternativa si se prefiere hover
 
-
 4. Home Page - Drag & Drop Zone
-Archivos:
+   Archivos:
 
 app/page.tsx - Página principal con dropzone
 components/file-dropzone.tsx - Componente de arrastrar/soltar
@@ -70,7 +68,7 @@ IDLE → FILE_SELECTED → UPLOADING → QUEUED → PROCESSING → COMPLETED | E
 Usaremos useState con un objeto de estado bien tipado (evitamos dependencias adicionales como XState por ahora).
 
 5. Vista de Edición con Sidebar Data-Driven
-Archivos:
+   Archivos:
 
 app/editor/page.tsx - Vista del editor
 components/editor/file-preview.tsx - Previsualización del archivo
@@ -80,34 +78,34 @@ lib/file-actions.ts - Configuración data-driven de acciones
 Patrón Data-Driven:
 // lib/file-actions.ts
 export const FILE_ACTIONS = {
-  document: [
-    { id: 'convert', label: 'Convertir', icon: FileType },
-    { id: 'organize', label: 'Organizar', icon: Layers },
-    { id: 'sign', label: 'Firmar', icon: PenTool },
-    { id: 'protect', label: 'Proteger', icon: Lock },
-    { id: 'unlock', label: 'Desbloquear', icon: Unlock },
-    { id: 'compress', label: 'Comprimir', icon: Archive },
-  ],
-  image: [
-    { id: 'compress', label: 'Comprimir', icon: Archive },
-    { id: 'optimize', label: 'Optimizar', icon: Zap },
-    { id: 'enhance', label: 'Mejorar', icon: Sparkles },
-    { id: 'convert', label: 'Convertir', icon: FileType },
-    { id: 'remove-bg', label: 'Remover fondo', icon: Eraser },
-    { id: 'crop', label: 'Recortar', icon: Crop },
-    { id: 'upscale', label: 'Ampliar', icon: Maximize },
-    { id: 'watermark', label: 'Marca de agua', icon: Stamp },
-    { id: 'blur-face', label: 'Pixelar cara', icon: User },
-  ],
+document: [
+{ id: 'convert', label: 'Convertir', icon: FileType },
+{ id: 'organize', label: 'Organizar', icon: Layers },
+{ id: 'sign', label: 'Firmar', icon: PenTool },
+{ id: 'protect', label: 'Proteger', icon: Lock },
+{ id: 'unlock', label: 'Desbloquear', icon: Unlock },
+{ id: 'compress', label: 'Comprimir', icon: Archive },
+],
+image: [
+{ id: 'compress', label: 'Comprimir', icon: Archive },
+{ id: 'optimize', label: 'Optimizar', icon: Zap },
+{ id: 'enhance', label: 'Mejorar', icon: Sparkles },
+{ id: 'convert', label: 'Convertir', icon: FileType },
+{ id: 'remove-bg', label: 'Remover fondo', icon: Eraser },
+{ id: 'crop', label: 'Recortar', icon: Crop },
+{ id: 'upscale', label: 'Ampliar', icon: Maximize },
+{ id: 'watermark', label: 'Marca de agua', icon: Stamp },
+{ id: 'blur-face', label: 'Pixelar cara', icon: User },
+],
 }
 Layout del Editor:
 ┌─────────────────────────────────────────────────┐
-│                    Header                        │
+│ Header │
 ├──────────┬──────────────────────────────────────┤
-│          │                                       │
-│ Sidebar  │         File Preview                  │
-│ Actions  │      (Document/Image view)            │
-│          │                                       │
+│ │ │
+│ Sidebar │ File Preview │
+│ Actions │ (Document/Image view) │
+│ │ │
 └──────────┴──────────────────────────────────────┘
 
 Previsualización:
@@ -116,33 +114,31 @@ Documentos: Mostrar primera página o placeholder con info del archivo
 Imágenes: Mostrar imagen con zoom/pan básico
 Para archivos grandes: mensaje "Puedes seguir convirtiendo mientras dejamos tu documento listo"
 
-
 6. Estructura de Carpetas Final
-app/
-├── layout.tsx          # Root layout con providers
-├── page.tsx            # Home con dropzone
-├── globals.css         # Temas light/dark/blue
-└── editor/
-    └── page.tsx        # Vista de edición
+   app/
+   ├── layout.tsx # Root layout con providers
+   ├── page.tsx # Home con dropzone
+   ├── globals.css # Temas light/dark/blue
+   └── editor/
+   └── page.tsx # Vista de edición
 
 components/
-├── header.tsx          # Header principal
-├── nav-menu.tsx        # Navegación con dropdowns
-├── theme-toggle.tsx    # Selector de tema
-├── sileo-provider.tsx  # Provider de toasts
-├── file-dropzone.tsx   # Zona de drag & drop
+├── header.tsx # Header principal
+├── nav-menu.tsx # Navegación con dropdowns
+├── theme-toggle.tsx # Selector de tema
+├── sileo-provider.tsx # Provider de toasts
+├── file-dropzone.tsx # Zona de drag & drop
 └── editor/
-    ├── file-preview.tsx   # Preview de archivos
-    └── action-sidebar.tsx # Sidebar data-driven
+├── file-preview.tsx # Preview de archivos
+└── action-sidebar.tsx # Sidebar data-driven
 
 lib/
-├── utils.ts            # Existente
-├── file-actions.ts     # Acciones por tipo de archivo
-└── file-utils.ts       # Detectar tipo, validar, etc.
+├── utils.ts # Existente
+├── file-actions.ts # Acciones por tipo de archivo
+└── file-utils.ts # Detectar tipo, validar, etc.
 
 types/
-└── file.ts             # Tipos para archivos y estado
-
+└── file.ts # Tipos para archivos y estado
 
 7. Orden de Implementación
 
@@ -153,7 +149,6 @@ Header + Nav: Crear navegación con menús
 Home + Dropzone: Página principal con drag & drop
 Editor + Sidebar: Vista de edición con acciones data-driven
 Preview: Previsualización básica de archivos
-
 
 Notas Técnicas
 
