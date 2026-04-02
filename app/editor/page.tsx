@@ -23,6 +23,11 @@ import {
 } from "@/lib/file-store";
 import type { StoredFileInfo } from "@/types/file";
 
+interface ConversionContext {
+  slug: string;
+  targetFormat: string;
+}
+
 function EditorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -35,6 +40,7 @@ function EditorContent() {
     null,
   );
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
+  const [conversionContext, setConversionContext] = useState<ConversionContext | null>(null);
 
   useEffect(() => {
     if (
@@ -60,30 +66,36 @@ function EditorContent() {
   }, [fileInfo]);
 
   useEffect(() => {
-    // Try to get file info from sessionStorage
-    const stored = sessionStorage.getItem("pendingFile");
+    const storedFile = sessionStorage.getItem("pendingFile");
+    const storedConversion = sessionStorage.getItem("conversionContext");
 
-    if (stored) {
+    if (storedFile) {
       try {
-        const parsed = JSON.parse(stored) as StoredFileInfo;
+        const parsed = JSON.parse(storedFile) as StoredFileInfo;
         if (parsed.id === fileId) {
-          // Verify file exists in memory store
           const file = getFile(parsed.id);
           if (file) {
             setFileInfo(parsed);
             setIsLoading(false);
+
+            if (storedConversion) {
+              try {
+                const conversion = JSON.parse(storedConversion) as ConversionContext;
+                setConversionContext(conversion);
+                sessionStorage.removeItem("conversionContext");
+              } catch {
+                sessionStorage.removeItem("conversionContext");
+              }
+            }
             return;
           }
-          // File not in memory, clear sessionStorage
           sessionStorage.removeItem("pendingFile");
         }
       } catch {
-        // Invalid JSON, clear it
         sessionStorage.removeItem("pendingFile");
       }
     }
 
-    // No valid file found
     setError("No file selected. Please upload a file first.");
     setIsLoading(false);
   }, [fileId]);
