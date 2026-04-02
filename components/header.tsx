@@ -25,12 +25,18 @@ import {
 function NavDropdownContent({
   category,
   isActive,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   category: NavCategory;
   isActive: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
 }) {
   return (
     <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={cn(
         "absolute top-full left-0 z-50 mt-1.5 overflow-hidden rounded-md border bg-popover p-2 text-popover-foreground shadow-md",
         "w-[400px] md:w-[500px]",
@@ -71,7 +77,22 @@ function NavDropdownContent({
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const headerRef = useRef<HTMLElement>(null);
+
+  const handleMouseEnter = (id: string) => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setActiveDropdownId(id);
+  };
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setActiveDropdownId(null);
+    }, 100);
+  };
 
   return (
     <header
@@ -87,13 +108,13 @@ export function Header() {
         {/* Desktop Navigation */}
         <nav
           className="hidden lg:flex items-center gap-1 relative"
-          onMouseLeave={() => setActiveDropdownId(null)}
+          onMouseLeave={handleMouseLeave}
         >
           {NAV_CATEGORIES.map((category) => (
             <div
               key={category.id}
               className="relative"
-              onMouseEnter={() => setActiveDropdownId(category.id)}
+              onMouseEnter={() => handleMouseEnter(category.id)}
             >
               <button
                 className={cn(
@@ -116,6 +137,8 @@ export function Header() {
               <NavDropdownContent
                 category={category}
                 isActive={activeDropdownId === category.id}
+                onMouseEnter={() => handleMouseEnter(category.id)}
+                onMouseLeave={handleMouseLeave}
               />
             </div>
           ))}
