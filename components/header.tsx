@@ -1,20 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Shield } from "lucide-react";
+import { Menu, Shield, ChevronDown } from "lucide-react";
+import { useState, useRef } from "react";
 
 import { cn } from "@/lib/utils";
-import { NAV_CATEGORIES } from "@/lib/nav-config";
+import { NAV_CATEGORIES, type NavCategory } from "@/lib/nav-config";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
 import {
   Sheet,
   SheetContent,
@@ -28,13 +21,63 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useState } from "react";
+
+function NavDropdownContent({
+  category,
+  isActive,
+}: {
+  category: NavCategory;
+  isActive: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "absolute top-full left-0 z-50 mt-1.5 overflow-hidden rounded-md border bg-popover p-2 text-popover-foreground shadow-md",
+        "w-[400px] md:w-[500px]",
+        isActive && "animate-dropdown-in"
+      )}
+      style={{
+        visibility: isActive ? "visible" : "hidden",
+        opacity: isActive ? 1 : 0,
+      }}
+    >
+      <div className="grid gap-1 md:grid-cols-2">
+        {category.items.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex select-none items-start gap-3 rounded-md p-3 leading-none no-underline outline-none transition-colors",
+              "hover:bg-accent hover:text-accent-foreground",
+              "focus:bg-accent focus:text-accent-foreground focus:outline-none"
+            )}
+          >
+            <item.icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
+            <div className="space-y-1">
+              <div className="text-sm font-medium leading-none">
+                {item.label}
+              </div>
+              <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                {item.description}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function Header() {
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+  const headerRef = useRef<HTMLElement>(null);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+    >
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
@@ -42,51 +85,48 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <NavigationMenu className="hidden lg:flex">
-          <NavigationMenuList>
-            {NAV_CATEGORIES.map((category) => (
-              <NavigationMenuItem key={category.id}>
-                <NavigationMenuTrigger className="gap-1.5">
-                  <category.icon className="h-4 w-4" />
-                  {category.label}
-                </NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-1 p-2 md:w-[500px] md:grid-cols-2">
-                    {category.items.map((item) => (
-                      <li key={item.href}>
-                        <NavigationMenuLink asChild>
-                          <Link
-                            href={item.href}
-                            className={cn(
-                              "flex select-none items-start gap-3 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                            )}
-                          >
-                            <item.icon className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium leading-none">
-                                {item.label}
-                              </div>
-                              <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                                {item.description}
-                              </p>
-                            </div>
-                          </Link>
-                        </NavigationMenuLink>
-                      </li>
-                    ))}
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            ))}
-          </NavigationMenuList>
-        </NavigationMenu>
+        <nav
+          className="hidden lg:flex items-center gap-1 relative"
+          onMouseLeave={() => setActiveDropdownId(null)}
+        >
+          {NAV_CATEGORIES.map((category) => (
+            <div
+              key={category.id}
+              className="relative"
+              onMouseEnter={() => setActiveDropdownId(category.id)}
+            >
+              <button
+                className={cn(
+                  "group inline-flex h-9 w-max items-center justify-center gap-1.5 rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  "focus:bg-accent focus:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  activeDropdownId === category.id && "bg-accent/50 text-accent-foreground"
+                )}
+              >
+                <category.icon className="h-4 w-4" />
+                {category.label}
+                <ChevronDown
+                  className={cn(
+                    "relative top-[1px] ml-1 size-3 transition-transform duration-300",
+                    activeDropdownId === category.id && "rotate-180"
+                  )}
+                  aria-hidden="true"
+                />
+              </button>
+              <NavDropdownContent
+                category={category}
+                isActive={activeDropdownId === category.id}
+              />
+            </div>
+          ))}
+        </nav>
 
         {/* Right side */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
           {/* Mobile Menu */}
-          <Sheet open={open} onOpenChange={setOpen}>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="lg:hidden">
                 <Menu className="h-5 w-5" />
@@ -117,7 +157,7 @@ export function Header() {
                               key={item.href}
                               href={item.href}
                               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                              onClick={() => setOpen(false)}
+                              onClick={() => setMobileOpen(false)}
                             >
                               <item.icon className="h-4 w-4" />
                               {item.label}

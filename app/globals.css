@@ -165,3 +165,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dropdown-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.animate-dropdown-in {
+  animation: dropdown-in 200ms ease-out forwards;
+}
+
+.animate-dropdown-out {
+  animation: dropdown-out 150ms ease-in forwards;
+}
