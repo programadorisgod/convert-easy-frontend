@@ -14,6 +14,18 @@ import {
 } from "lucide-react";
 import type { FileCategory } from "@/types/file";
 
+export type ActionType = 
+  | "convert" 
+  | "compress" 
+  | "organize" 
+  | "sign" 
+  | "protect" 
+  | "extract" 
+  | "trim" 
+  | "normalize";
+
+export type OperationParams = Record<string, unknown>;
+
 export interface ConversionConfig {
   slug: string;
   label: string;
@@ -23,6 +35,8 @@ export interface ConversionConfig {
   category: FileCategory;
   icon: LucideIcon;
   href: string;
+  type: ActionType;
+  operation: string;
 }
 
 export interface ToolConfig {
@@ -32,6 +46,11 @@ export interface ToolConfig {
   category: FileCategory;
   icon: LucideIcon;
   href: string;
+  sourceExtensions?: string[];
+  type: ActionType;
+  operation: string;
+  outputFormat?: string;
+  acceptsMultiple?: boolean;
 }
 
 export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
@@ -44,6 +63,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "document",
     icon: ArrowRightLeft,
     href: "/convert/docx-to-pdf",
+    type: "convert",
+    operation: "convert",
   },
   "docx-to-html": {
     slug: "docx-to-html",
@@ -54,6 +75,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "document",
     icon: ArrowRightLeft,
     href: "/convert/docx-to-html",
+    type: "convert",
+    operation: "convert",
   },
   "docx-to-md": {
     slug: "docx-to-md",
@@ -64,6 +87,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "document",
     icon: ArrowRightLeft,
     href: "/convert/docx-to-md",
+    type: "convert",
+    operation: "convert",
   },
   "docx-to-odt": {
     slug: "docx-to-odt",
@@ -74,6 +99,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "document",
     icon: ArrowRightLeft,
     href: "/convert/docx-to-odt",
+    type: "convert",
+    operation: "convert",
   },
   "pdf": {
     slug: "pdf",
@@ -84,6 +111,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "document",
     icon: ArrowRightLeft,
     href: "/convert/pdf",
+    type: "convert",
+    operation: "convert",
   },
   "video-to-mp4": {
     slug: "video-to-mp4",
@@ -94,6 +123,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "video",
     icon: ArrowRightLeft,
     href: "/convert/video-to-mp4",
+    type: "convert",
+    operation: "convert",
   },
   "video-to-mkv": {
     slug: "video-to-mkv",
@@ -104,6 +135,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "video",
     icon: ArrowRightLeft,
     href: "/convert/video-to-mkv",
+    type: "convert",
+    operation: "convert",
   },
   "video-to-webm": {
     slug: "video-to-webm",
@@ -114,6 +147,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "video",
     icon: ArrowRightLeft,
     href: "/convert/video-to-webm",
+    type: "convert",
+    operation: "convert",
   },
   "audio-to-mp3": {
     slug: "audio-to-mp3",
@@ -124,6 +159,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "audio",
     icon: ArrowRightLeft,
     href: "/convert/audio-to-mp3",
+    type: "convert",
+    operation: "convert",
   },
   "audio-to-flac": {
     slug: "audio-to-flac",
@@ -134,6 +171,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "audio",
     icon: ArrowRightLeft,
     href: "/convert/audio-to-flac",
+    type: "convert",
+    operation: "convert",
   },
   "audio-to-wav": {
     slug: "audio-to-wav",
@@ -144,6 +183,8 @@ export const CONVERSION_CONFIGS: Record<string, ConversionConfig> = {
     category: "audio",
     icon: ArrowRightLeft,
     href: "/convert/audio-to-wav",
+    type: "convert",
+    operation: "convert",
   },
 };
 
@@ -155,6 +196,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "document",
     icon: Layers,
     href: "/tools/pdf-organize",
+    sourceExtensions: [".pdf"],
+    type: "organize",
+    operation: "organize",
+    acceptsMultiple: true,
   },
   "pdf-sign": {
     slug: "pdf-sign",
@@ -163,6 +208,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "document",
     icon: PenTool,
     href: "/tools/pdf-sign",
+    sourceExtensions: [".pdf"],
+    type: "sign",
+    operation: "sign",
+    outputFormat: "pdf",
   },
   "pdf-protect": {
     slug: "pdf-protect",
@@ -171,6 +220,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "document",
     icon: Lock,
     href: "/tools/pdf-protect",
+    sourceExtensions: [".pdf"],
+    type: "protect",
+    operation: "encrypt",
+    outputFormat: "pdf",
   },
   "pdf-compress": {
     slug: "pdf-compress",
@@ -179,6 +232,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "document",
     icon: Archive,
     href: "/tools/pdf-compress",
+    sourceExtensions: [".pdf"],
+    type: "compress",
+    operation: "compress",
+    outputFormat: "pdf",
   },
   "extract-audio": {
     slug: "extract-audio",
@@ -187,6 +244,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "video",
     icon: Music,
     href: "/tools/extract-audio",
+    sourceExtensions: [".mp4", ".avi", ".mov", ".mkv", ".webm"],
+    type: "extract",
+    operation: "extract-audio",
+    outputFormat: "mp3",
   },
   "trim-video": {
     slug: "trim-video",
@@ -195,6 +256,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "video",
     icon: Scissors,
     href: "/tools/trim-video",
+    sourceExtensions: [".mp4", ".avi", ".mov", ".mkv", ".webm"],
+    type: "trim",
+    operation: "trim",
+    outputFormat: "mp4",
   },
   "trim-audio": {
     slug: "trim-audio",
@@ -203,6 +268,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "audio",
     icon: Scissors,
     href: "/tools/trim-audio",
+    sourceExtensions: [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a"],
+    type: "trim",
+    operation: "trim",
+    outputFormat: "mp3",
   },
   "normalize-audio": {
     slug: "normalize-audio",
@@ -211,6 +280,10 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     category: "audio",
     icon: Volume2,
     href: "/tools/normalize-audio",
+    sourceExtensions: [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a"],
+    type: "normalize",
+    operation: "normalize",
+    outputFormat: "mp3",
   },
 };
 

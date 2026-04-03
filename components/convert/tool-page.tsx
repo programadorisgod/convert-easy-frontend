@@ -14,23 +14,16 @@ import {
   Sparkles,
   Download,
   ArrowLeft,
-  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/file-utils";
 import { createFilePreviewUrl } from "@/lib/file-store";
-import { getConversionOptions } from "@/lib/file-actions";
-import type { ConversionConfig, ConversionOption } from "@/lib/conversion-config";
+import type { ToolConfig } from "@/lib/conversion-config";
 import type { FileCategory } from "@/types/file";
-import { executeAction, type ActionResult, cancelAction } from "./action-executor";
+import { executeAction, type ActionResult, cancelAction } from "../convert/action-executor";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 
 interface FilePreview {
   name: string;
@@ -44,7 +37,7 @@ interface FilePreview {
 type WorkflowStatus =
   | "idle"
   | "file-selected"
-  | "converting"
+  | "processing"
   | "completed"
   | "failed";
 
@@ -56,11 +49,11 @@ const CATEGORY_ICONS: Record<FileCategory, React.ComponentType<{ className?: str
   unknown: File,
 };
 
-interface ConversionPageProps {
-  config: ConversionConfig;
+interface ToolPageProps {
+  config: ToolConfig;
 }
 
-export function ConversionPage({ config }: ConversionPageProps) {
+export function ToolPage({ config }: ToolPageProps) {
   const [file, setFile] = useState<FilePreview | null>(null);
   const [status, setStatus] = useState<WorkflowStatus>("idle");
   const [stage, setStage] = useState<string>("uploading");
@@ -70,17 +63,9 @@ export function ConversionPage({ config }: ConversionPageProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [invalidFile, setInvalidFile] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState<string>("");
-  const [showFormatSelector, setShowFormatSelector] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isMultiFormat = config.targetFormat === "multiple";
-  const conversionOptions = isMultiFormat 
-    ? getConversionOptions("document", "pdf")
-    : [];
-  const effectiveTargetFormat = isMultiFormat ? selectedFormat : config.targetFormat;
-
-  const acceptedExtensions = config.sourceExtensions.join(",");
+  const acceptedExtensions = config.sourceExtensions?.join(",") || "*";
 
   const getCategoryFromExtension = (ext: string): FileCategory => {
     const extension = ext.toLowerCase().replace(".", "");
@@ -98,6 +83,9 @@ export function ConversionPage({ config }: ConversionPageProps) {
 
   const isValidFile = useCallback(
     (file: File): boolean => {
+      if (!config.sourceExtensions || config.sourceExtensions.length === 0) {
+        return true;
+      }
       const extension = "." + file.name.split(".").pop()?.toLowerCase();
       return config.sourceExtensions.includes(extension);
     },
@@ -151,7 +139,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
         } else {
           const ext = "." + droppedFile.name.split(".").pop()?.toLowerCase();
           setInvalidFile(
-            `Invalid file: ${ext}. Accepted: ${config.sourceExtensions.join(", ")}`
+            `Invalid file: ${ext}. Accepted: ${config.sourceExtensions?.join(", ") || "any"}`
           );
         }
       }
@@ -172,39 +160,25 @@ export function ConversionPage({ config }: ConversionPageProps) {
       } else {
         const ext = "." + selectedFile.name.split(".").pop()?.toLowerCase();
         setInvalidFile(
-          `Invalid file: ${ext}. Accepted: ${config.sourceExtensions.join(", ")}`
+          `Invalid file: ${ext}. Accepted: ${config.sourceExtensions?.join(", ") || "any"}`
         );
       }
     }
     e.target.value = "";
   };
 
-  const handleConvert = async () => {
+  const handleExecute = async () => {
     if (!file) return;
 
-    if (isMultiFormat && !selectedFormat) {
-      setShowFormatSelector(true);
-      return;
-    }
-
-    if (isMultiFormat && selectedFormat) {
-      setShowFormatSelector(false);
-    }
-
-    setStatus("converting");
+    setStatus("processing");
     setStage("uploading");
     setProgress(0);
     setError(null);
 
-    const configWithFormat = {
-      ...config,
-      targetFormat: effectiveTargetFormat,
-    };
-
     try {
       const actionResult = await executeAction({
         file: file.file,
-        config: configWithFormat,
+        config,
         onProgress: (newStage, newProgress) => {
           setStage(newStage);
           setProgress(newProgress);
@@ -257,8 +231,6 @@ export function ConversionPage({ config }: ConversionPageProps) {
     setError(null);
     setProgress(0);
     setCurrentJobId(null);
-    setSelectedFormat("");
-    setShowFormatSelector(false);
   };
 
   useEffect(() => {
@@ -272,6 +244,19 @@ export function ConversionPage({ config }: ConversionPageProps) {
   const Icon = config.icon;
   const CategoryIcon = file ? CATEGORY_ICONS[file.category] : Icon;
 
+  const getActionLabel = () => {
+    const actionLabels: Record<string, string> = {
+      compress: "Comprimir",
+      organize: "Organizar",
+      protect: "Proteger",
+      extract: "Extraer audio",
+      trim: "Recortar",
+      normalize: "Normalizar",
+      sign: "Firmar",
+    };
+    return actionLabels[config.type] || "Procesar";
+  };
+
   const renderContent = () => {
     switch (status) {
       case "idle":
@@ -280,8 +265,8 @@ export function ConversionPage({ config }: ConversionPageProps) {
       case "file-selected":
         return renderFileSelected();
 
-      case "converting":
-        return renderConverting();
+      case "processing":
+        return renderProcessing();
 
       case "completed":
         return renderCompleted();
@@ -322,21 +307,23 @@ export function ConversionPage({ config }: ConversionPageProps) {
         <h3 className="text-xl font-semibold text-foreground">
           {isDragOver
             ? "Drop your file here"
-            : `Upload your ${config.sourceExtensions[0].replace(".", "").toUpperCase()} file`}
+            : `Upload your ${config.sourceExtensions?.[0]?.replace(".", "").toUpperCase() || "file"}`}
         </h3>
         <p className="mt-2 text-sm text-muted-foreground">
           Drag and drop or click to browse
         </p>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {config.sourceExtensions.map((ext) => (
-            <span
-              key={ext}
-              className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
-            >
-              {ext.toUpperCase()}
-            </span>
-          ))}
-        </div>
+        {config.sourceExtensions && config.sourceExtensions.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {config.sourceExtensions.map((ext) => (
+              <span
+                key={ext}
+                className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
+              >
+                {ext.toUpperCase()}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -347,46 +334,9 @@ export function ConversionPage({ config }: ConversionPageProps) {
         <CategoryIcon className="h-10 w-10 text-primary" />
       </div>
       <h3 className="mb-2 text-xl font-semibold">{file?.name}</h3>
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="mb-8 text-sm text-muted-foreground">
         {file?.extension.toUpperCase()} - {formatFileSize(file?.size || 0)}
       </p>
-
-      {isMultiFormat && (
-        <div className="mb-6 w-full max-w-xs">
-          <button
-            onClick={() => setShowFormatSelector(!showFormatSelector)}
-            className="flex w-full items-center justify-between rounded-md border p-3 text-sm"
-          >
-            <span>
-              {selectedFormat 
-                ? `Convertir a ${selectedFormat.toUpperCase()}` 
-                : "Seleccionar formato de salida"}
-            </span>
-            <ChevronDown className="h-4 w-4" />
-          </button>
-          
-          {showFormatSelector && (
-            <div className="mt-2 rounded-md border bg-background p-2">
-              {conversionOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => {
-                    setSelectedFormat(option.extension);
-                    setShowFormatSelector(false);
-                  }}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-md p-2 text-sm hover:bg-accent",
-                    selectedFormat === option.extension && "bg-accent"
-                  )}
-                >
-                  <span>{option.label}</span>
-                  <span className="text-muted-foreground">.{option.extension}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex gap-3">
         <Button
@@ -398,23 +348,22 @@ export function ConversionPage({ config }: ConversionPageProps) {
           Cambiar archivo
         </Button>
         <Button
-          onClick={handleConvert}
-          disabled={isMultiFormat && !selectedFormat}
+          onClick={handleExecute}
           className="gap-2"
         >
           <Sparkles className="h-4 w-4" />
-          Convertir a {effectiveTargetFormat.toUpperCase()}
+          {getActionLabel()}
         </Button>
       </div>
     </div>
   );
 
-  const renderConverting = () => (
+  const renderProcessing = () => (
     <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-12">
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
-      <h3 className="mb-2 text-xl font-semibold">Convirtiendo tu archivo</h3>
+      <h3 className="mb-2 text-xl font-semibold">Procesando tu archivo</h3>
       <p className="mb-2 text-sm text-muted-foreground">
         {stage === "uploading" ? "Subiendo archivo..." : "Procesando..."}
       </p>
@@ -454,7 +403,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
       </div>
       <h3 className="mb-2 text-xl font-semibold">¡Listo!</h3>
       <p className="mb-2 text-sm text-muted-foreground">
-        Tu archivo se ha convertido exitosamente
+        Tu archivo ha sido procesado exitosamente
       </p>
       <p className="mb-8 text-xs text-muted-foreground">
         {result?.filename}
@@ -467,7 +416,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
           className="gap-2"
         >
           <Upload className="h-4 w-4" />
-          Convertir otro archivo
+          Procesar otro archivo
         </Button>
         <Button
           onClick={handleDownload}
@@ -485,7 +434,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10">
         <AlertCircle className="h-10 w-10 text-destructive" />
       </div>
-      <h3 className="mb-2 text-xl font-semibold">Error en la conversión</h3>
+      <h3 className="mb-2 text-xl font-semibold">Error en el procesamiento</h3>
       <p className="mb-2 text-sm text-muted-foreground">{error}</p>
 
       <div className="flex gap-3">
@@ -498,7 +447,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
           Intentar de nuevo
         </Button>
         <Button
-          onClick={handleConvert}
+          onClick={handleExecute}
           className="gap-2"
         >
           <Sparkles className="h-4 w-4" />
@@ -558,8 +507,12 @@ export function ConversionPage({ config }: ConversionPageProps) {
         <div className="mt-8 rounded-lg border bg-muted/50 p-4">
           <h3 className="mb-2 font-medium">Quick tips:</h3>
           <ul className="space-y-1 text-sm text-muted-foreground">
-            <li>Input formats: {config.sourceExtensions.join(", ")}</li>
-            <li>Output format: {config.targetFormat.toUpperCase()}</li>
+            {config.sourceExtensions && (
+              <li>Input formats: {config.sourceExtensions.join(", ")}</li>
+            )}
+            {config.outputFormat && (
+              <li>Output format: {config.outputFormat.toUpperCase()}</li>
+            )}
             <li>Files are processed securely and deleted after download</li>
           </ul>
         </div>

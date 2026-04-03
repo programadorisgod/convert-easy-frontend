@@ -98,6 +98,11 @@ type PdfOperationRoute =
   | "draw-rectangle"
   | "add-annotation"
   | "set-mediabox"
+  | "compress"
+  | "extract-audio"
+  | "trim"
+  | "normalize"
+  | "sign"
 
 /**
  * Process document conversion using the document processing pipeline.
