@@ -31,7 +31,6 @@ import {
   convertXmlToJson,
   convertXmlToYaml,
   convertXmlToHtml,
-  convertXmlToCsv,
 } from "@/lib/api-service";
 import type { JobStatus, CompressImageRequest } from "@/types/api";
 import { Button } from "@/components/ui/button";
@@ -724,8 +723,7 @@ export function ActionSidebar({
 
       sileo.info({
         title: "Convirtiendo XML",
-        description:
-          "Procesando tu archivo XML...",
+        description: "Procesando tu archivo XML...",
         icon: <Sparkles className="size-3.5" />,
         roundness: 16,
         duration: 4000,
@@ -755,18 +753,6 @@ export function ActionSidebar({
               template: "table",
             });
             break;
-          case "csv":
-            // CSV requires special handling with column mapping
-            sileo.info({
-              title: "CSV requiere configuración",
-              description:
-                "Por favor especifica el mapeo de columnas para convertir XML a CSV.",
-              icon: <Info className="size-3.5" />,
-              roundness: 16,
-              duration: 5000,
-            });
-            setIsConverting(false);
-            return;
           default:
             throw new Error(`Unsupported XML target format: ${selectedFormat}`);
         }
