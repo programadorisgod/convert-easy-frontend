@@ -15,6 +15,7 @@ const EXTENSION_MAP: Record<string, FileCategory> = {
   xlsx: "document",
   ppt: "document",
   pptx: "document",
+  xml: "document",
   
   // Images
   jpg: "image",

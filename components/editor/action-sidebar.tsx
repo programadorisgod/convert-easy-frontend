@@ -28,6 +28,10 @@ import {
   processPdfFile,
   createUploadedJob,
   queuePdfMergeFromJobs,
+  convertXmlToJson,
+  convertXmlToYaml,
+  convertXmlToHtml,
+  convertXmlToCsv,
 } from "@/lib/api-service";
 import type { JobStatus, CompressImageRequest } from "@/types/api";
 import { Button } from "@/components/ui/button";
@@ -688,7 +692,7 @@ export function ActionSidebar({
     if (!selectedFormat) {
       sileo.error({
         title: "Select a format",
-        description: "Please select a target format for the conversion.",
+        description: "Please select a target format for your file.",
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
         autopilot: {
@@ -714,6 +718,113 @@ export function ActionSidebar({
       return;
     }
 
+    // Handle XML conversion with dedicated API
+    if (inputFormat.toLowerCase() === "xml") {
+      setShowConvertDialog(false);
+
+      sileo.info({
+        title: "Convirtiendo XML",
+        description:
+          "Procesando tu archivo XML...",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+
+      setIsConverting(true);
+
+      try {
+        let result: { blob: Blob; filename: string };
+
+        switch (selectedFormat.toLowerCase()) {
+          case "json":
+            result = await convertXmlToJson(file, {
+              preserve_attributes: false,
+              always_as_list: false,
+            });
+            break;
+          case "yaml":
+            result = await convertXmlToYaml(file, {
+              indent: 2,
+              flow_style: false,
+              preserve_xml_declaration: true,
+            });
+            break;
+          case "html":
+            result = await convertXmlToHtml(file, {
+              template: "table",
+            });
+            break;
+          case "csv":
+            // CSV requires special handling with column mapping
+            sileo.info({
+              title: "CSV requiere configuración",
+              description:
+                "Por favor especifica el mapeo de columnas para convertir XML a CSV.",
+              icon: <Info className="size-3.5" />,
+              roundness: 16,
+              duration: 5000,
+            });
+            setIsConverting(false);
+            return;
+          default:
+            throw new Error(`Unsupported XML target format: ${selectedFormat}`);
+        }
+
+        // Download the converted file
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        setIsConverting(false);
+
+        sileo.success({
+          title: "¡Conversión completada!",
+          description: `${result.filename} se ha descargado.`,
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        if (onActionSelect) {
+          onActionSelect("convert", { targetFormat: selectedFormat });
+        }
+        return;
+      } catch (error) {
+        console.error("XML conversion error:", error);
+
+        let errorMessage = "Could not convert the XML file";
+
+        if (error instanceof Error) {
+          if (
+            error.message.includes("NetworkError") ||
+            error.message.includes("fetch")
+          ) {
+            errorMessage =
+              "Could not connect to the server. Please check your internet connection or try again later.";
+          } else {
+            errorMessage = error.message;
+          }
+        }
+
+        sileo.error({
+          title: "Error en la conversión XML",
+          description: errorMessage,
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 8000,
+        });
+        setIsConverting(false);
+        return;
+      }
+    }
+
+    // Continue with regular conversion (non-XML)
     const useDocumentEndpoint = category === "document";
 
     setShowConvertDialog(false);

@@ -658,3 +658,177 @@ export async function queuePdfMergeFromJobs(
   const payload = (await response.json()) as PdfProcessResponse
   return payload.job_id
 }
+
+// ============================================================================
+// XML CONVERSION OPERATIONS
+// ============================================================================
+
+/**
+ * Convert XML to JSON
+ */
+export async function convertXmlToJson(
+  file: File,
+  options?: {
+    preserve_attributes?: boolean
+    always_as_list?: boolean
+  }
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  if (options?.preserve_attributes !== undefined) {
+    formData.append("preserve_attributes", String(options.preserve_attributes))
+  }
+  if (options?.always_as_list !== undefined) {
+    formData.append("always_as_list", String(options.always_as_list))
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/convert/xml/json`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al convertir XML a JSON")
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition")
+  const filename = contentDisposition
+    ? contentDisposition.split("filename=")[1]?.replace(/"/g, "") || "output.json"
+    : "output.json"
+
+  const blob = await response.blob()
+  return { blob, filename }
+}
+
+/**
+ * Convert XML to YAML
+ */
+export async function convertXmlToYaml(
+  file: File,
+  options?: {
+    indent?: number
+    flow_style?: boolean
+    preserve_xml_declaration?: boolean
+  }
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData()
+  formData.append("file", file)
+
+  if (options?.indent !== undefined) {
+    formData.append("indent", String(options.indent))
+  }
+  if (options?.flow_style !== undefined) {
+    formData.append("flow_style", String(options.flow_style))
+  }
+  if (options?.preserve_xml_declaration !== undefined) {
+    formData.append("preserve_xml_declaration", String(options.preserve_xml_declaration))
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/convert/xml/yaml`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al convertir XML a YAML")
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition")
+  const filename = contentDisposition
+    ? contentDisposition.split("filename=")[1]?.replace(/"/g, "") || "output.yaml"
+    : "output.yaml"
+
+  const blob = await response.blob()
+  return { blob, filename }
+}
+
+/**
+ * Convert XML to HTML
+ */
+export async function convertXmlToHtml(
+  file: File,
+  options?: {
+    template?: "table" | "list" | "cards"
+    title?: string
+    custom_xslt?: string
+  }
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("template", options?.template || "table")
+
+  if (options?.title) {
+    formData.append("title", options.title)
+  }
+  if (options?.custom_xslt) {
+    formData.append("custom_xslt", options.custom_xslt)
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/convert/xml/html`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al convertir XML a HTML")
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition")
+  const filename = contentDisposition
+    ? contentDisposition.split("filename=")[1]?.replace(/"/g, "") || "output.html"
+    : "output.html"
+
+  const blob = await response.blob()
+  return { blob, filename }
+}
+
+/**
+ * Convert XML to CSV (requires explicit column mapping)
+ */
+export async function convertXmlToCsv(
+  file: File,
+  options: {
+    root_element: string
+    columns: { header: string; xpath: string }[]
+    delimiter?: string
+  }
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("root_element", options.root_element)
+  formData.append("columns", JSON.stringify(options.columns))
+
+  if (options.delimiter) {
+    formData.append("delimiter", options.delimiter)
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/convert/xml/csv`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al convertir XML a CSV")
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition")
+  const filename = contentDisposition
+    ? contentDisposition.split("filename=")[1]?.replace(/"/g, "") || "output.csv"
+    : "output.csv"
+
+  const blob = await response.blob()
+  return { blob, filename }
+}

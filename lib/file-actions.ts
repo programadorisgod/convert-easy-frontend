@@ -206,6 +206,11 @@ export function getActionsForCategory(
 ): FileAction[] {
   const normalizedInputFormat = inputFormat?.toLowerCase()
 
+  // XML files only have "convert" action
+  if (normalizedInputFormat === "xml") {
+    return FILE_ACTIONS.filter((action) => action.id === "convert")
+  }
+
   return FILE_ACTIONS.filter((action) => {
     if (!action.category.includes(category)) {
       return false
@@ -266,6 +271,13 @@ const PDF_CONVERSION_OPTIONS: ConversionOption[] = CONVERSION_OPTIONS.document.f
   (option) => option.extension !== "md",
 )
 
+const XML_CONVERSION_OPTIONS: ConversionOption[] = [
+  { id: "json", label: "JSON", extension: "json", description: "JavaScript Object Notation" },
+  { id: "yaml", label: "YAML", extension: "yaml", description: "YAML Ain't Markup Language" },
+  { id: "html", label: "HTML", extension: "html", description: "Web Page" },
+  { id: "csv", label: "CSV", extension: "csv", description: "Comma Separated Values (requires mapping)" },
+]
+
 export function getConversionOptions(
   category: FileCategory,
   inputFormat?: string,
@@ -282,6 +294,10 @@ export function getConversionOptions(
 
   if (category === "document" && normalizedInputFormat === "pdf") {
     return PDF_CONVERSION_OPTIONS
+  }
+
+  if (category === "document" && normalizedInputFormat === "xml") {
+    return XML_CONVERSION_OPTIONS
   }
 
   return CONVERSION_OPTIONS[category] || []
