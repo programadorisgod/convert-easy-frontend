@@ -467,6 +467,39 @@ export function ToolPage({ config }: ToolPageProps) {
     </div>
   );
 
+  // Full-width layout for sign type
+  const isFullWidth = config.type === "sign";
+
+  if (isFullWidth) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header */}
+        <div className="border-b bg-card">
+          <div className="container mx-auto px-4 py-3 flex items-center gap-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Icon className="h-4 w-4 text-primary" />
+              </div>
+              <span className="font-semibold">{config.label}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Content - full width */}
+        <div className="flex-1 p-4">
+          <PdfSignPage initialFile={file?.file || null} className="h-full" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-4xl px-4 py-8">
