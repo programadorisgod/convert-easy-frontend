@@ -24,6 +24,7 @@ import type { FileCategory } from "@/types/file";
 import { executeAction, type ActionResult, cancelAction } from "../convert/action-executor";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
+import { PdfSignPage } from "@/components/pdf-sign/pdf-sign-page";
 
 interface FilePreview {
   name: string;
@@ -258,6 +259,15 @@ export function ToolPage({ config }: ToolPageProps) {
   };
 
   const renderContent = () => {
+    // Special handling for sign type - use dedicated PDF signing page
+    if (config.type === "sign") {
+      return (
+        <div className="h-[600px]">
+          <PdfSignPage initialFile={file?.file || null} />
+        </div>
+      );
+    }
+
     switch (status) {
       case "idle":
         return renderFileSelector();
