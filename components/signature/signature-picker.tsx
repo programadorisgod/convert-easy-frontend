@@ -212,11 +212,13 @@ export function SignaturePicker({
 
               {/* Signature preview */}
               <div className="flex items-center justify-center bg-white rounded min-h-[60px]">
-                <img
-                  src={sig.dataUrl}
-                  alt={sig.name}
-                  className="max-w-full max-h-16 object-contain"
-                />
+                <div className="bg-white p-1">
+                  <img
+                    src={sig.dataUrl}
+                    alt={sig.name}
+                    className="max-w-full max-h-16 object-contain"
+                  />
+                </div>
               </div>
 
               {/* Name and delete */}

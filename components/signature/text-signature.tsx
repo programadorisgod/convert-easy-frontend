@@ -24,8 +24,8 @@ export interface TextSignatureProps {
 }
 
 export function TextSignature({
-  width = 400,
-  height = 120,
+  width = 280,
+  height = 80,
   initialText = "",
   className,
   onRender,
@@ -48,8 +48,8 @@ export function TextSignature({
     if (!text.trim()) return;
 
     // Calculate font size based on text length and available width
-    const baseFontSize = Math.min(width * 0.15, height * 0.8);
-    const fontSize = Math.max(24, Math.min(baseFontSize, width / (text.length * 0.5)));
+    const baseFontSize = Math.min(width * 0.2, height * 0.7);
+    const fontSize = Math.max(16, Math.min(baseFontSize, width / (text.length * 0.45)));
     
     ctx.font = `${fontSize}px "${fontFamily}", cursive`;
     ctx.fillStyle = "#000000";
@@ -78,10 +78,10 @@ export function TextSignature({
   }, [text, width, height, onRender, renderToCanvas]);
 
   // Calculate preview font size
-  const previewFontSize = Math.min(width * 0.12, height * 0.6, 56);
+  const previewFontSize = Math.min(width * 0.15, height * 0.5, 36);
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
       {/* Hidden canvas for rendering */}
       <canvas
         ref={canvasRef}
@@ -92,23 +92,22 @@ export function TextSignature({
 
       {/* Preview with text centered */}
       <div 
-        className="border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center overflow-hidden p-2"
-        style={{ width, height }}
+        className="border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center overflow-hidden p-2 bg-white"
+        style={{ height }}
       >
         {text.trim() ? (
           <span 
-            className="text-black text-center leading-tight break-words max-w-full"
+            className="text-center leading-tight break-words max-w-full truncate"
             style={{ 
               fontFamily,
               fontSize: previewFontSize,
-              maxWidth: width - 16,
             }}
           >
             {text}
           </span>
         ) : (
-          <span className="text-muted-foreground text-sm font-sans">
-            Type your name above
+          <span className="text-muted-foreground text-xs font-sans">
+            Type your name
           </span>
         )}
       </div>
@@ -119,7 +118,7 @@ export function TextSignature({
         placeholder="Type your name"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="font-sans"
+        className="font-sans text-sm"
       />
 
       {/* Actions */}
@@ -130,7 +129,7 @@ export function TextSignature({
           onClick={handleExport}
           disabled={!text.trim()}
         >
-          Create Signature
+          Create
         </Button>
       </div>
     </div>

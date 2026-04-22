@@ -23,9 +23,9 @@ export interface SignatureCanvasProps {
 }
 
 export function SignatureCanvas({
-  width = 400,
-  height = 200,
-  lineWidth = 3,
+  width = 280,
+  height = 120,
+  lineWidth = 2,
   className,
   onExport,
 }: SignatureCanvasProps) {
@@ -166,24 +166,60 @@ export function SignatureCanvas({
     const canvas = canvasRef.current;
     if (!canvas || !hasContent) return;
 
-    // Create export canvas with transparent background
-    const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = width;
-    exportCanvas.height = height;
-    const ctx = exportCanvas.getContext("2d");
+    // Get the actual content bounds to crop empty space
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Keep transparent background (no fillRect)
+    // Get image data to find content bounds
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
 
-    // Draw the signature
-    ctx.drawImage(canvas, 0, 0);
+    // Find pixels with content (non-transparent)
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const i = (y * canvas.width + x) * 4;
+        if (data[i + 3] > 0) { // alpha > 0
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+
+    // Add small padding
+    const padding = 10;
+    minX = Math.max(0, minX - padding);
+    minY = Math.max(0, minY - padding);
+    maxX = Math.min(canvas.width, maxX + padding);
+    maxY = Math.min(canvas.height, maxY + padding);
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    if (contentWidth < 10 || contentHeight < 10) return;
+
+    // Create cropped export canvas
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = contentWidth;
+    exportCanvas.height = contentHeight;
+    const exportCtx = exportCanvas.getContext("2d");
+    if (!exportCtx) return;
+
+    // Draw only the content region
+    exportCtx.drawImage(
+      canvas,
+      minX, minY, contentWidth, contentHeight,
+      0, 0, contentWidth, contentHeight
+    );
 
     const dataUrl = exportCanvas.toDataURL("image/png");
-    onExport?.(dataUrl, width, height);
-  }, [hasContent, width, height, onExport]);
+    onExport?.(dataUrl, contentWidth, contentHeight);
+  }, [hasContent, onExport]);
 
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div className={cn("flex flex-col gap-2", className)}>
       <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg overflow-hidden">
         <canvas
           ref={canvasRef}
@@ -215,7 +251,7 @@ export function SignatureCanvas({
           onClick={handleExport}
           disabled={!hasContent}
         >
-          Save Signature
+          Save
         </Button>
       </div>
     </div>

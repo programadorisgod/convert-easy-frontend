@@ -401,8 +401,8 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                   }}
                   onMouseDown={handleMouseDown}
                 >
-                  {/* Signature image */}
-                  <div className="relative w-full h-full border-2 border-dashed border-blue-500 rounded bg-white/90 shadow-lg">
+                  {/* Signature image - removed extra padding */}
+                  <div className="relative w-full h-full border-2 border-dashed border-blue-500 rounded shadow-lg">
                     <img
                       src={selectedSignature.dataUrl}
                       alt={selectedSignature.name}
@@ -410,16 +410,16 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                       draggable={false}
                     />
                     
-                    {/* Resize handles */}
+                    {/* Resize handles - reduced size */}
                     {["nw", "ne", "sw", "se"].map((handle) => (
                       <div
                         key={handle}
                         className={cn(
-                          "absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-sm cursor-pointer hover:bg-blue-100",
-                          handle === "nw" && "-top-2 -left-2 cursor-nwse-resize",
-                          handle === "ne" && "-top-2 -right-2 cursor-nesw-resize",
-                          handle === "sw" && "-bottom-2 -left-2 cursor-nesw-resize",
-                          handle === "se" && "-bottom-2 -right-2 cursor-nwse-resize",
+                          "absolute w-3 h-3 bg-white border-2 border-blue-500 rounded-sm cursor-pointer hover:bg-blue-100",
+                          handle === "nw" && "-top-1.5 -left-1.5 cursor-nwse-resize",
+                          handle === "ne" && "-top-1.5 -right-1.5 cursor-nesw-resize",
+                          handle === "sw" && "-bottom-1.5 -left-1.5 cursor-nesw-resize",
+                          handle === "se" && "-bottom-1.5 -right-1.5 cursor-nwse-resize",
                         )}
                         onMouseDown={(e) => handleResizeMouseDown(e, handle)}
                       />
