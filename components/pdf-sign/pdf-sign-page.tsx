@@ -119,9 +119,9 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
   // Handle signature selection
   const handleSignatureSelect = useCallback((signature: StoredSignature) => {
     setSelectedSignature(signature);
-    setOverlayPosition({ x: 100, y: 100 });
+    setOverlayPosition({ x: 150, y: 150 });
     const aspectRatio = signature.width / signature.height;
-    const defaultWidth = 200;
+    const defaultWidth = 300;
     setOverlaySize({
       width: defaultWidth,
       height: defaultWidth / aspectRatio,
@@ -286,9 +286,9 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
   const isSigning = status === "loading" || status === "signing";
 
   return (
-    <div className={cn("flex h-full gap-4", className)}>
+    <div className={cn("flex h-[calc(100vh-12rem)] gap-4 pt-4 px-4 pb-4", className)}>
       {/* Sidebar - Signature Picker */}
-      <div className="w-72 flex-shrink-0 border-r pr-4 overflow-y-auto bg-card/50 rounded-lg p-4">
+      <div className="w-80 flex-shrink-0 border-r pr-4 overflow-y-auto bg-card/50 rounded-lg p-4">
         <SignaturePicker
           signatures={signatures}
           selectedSignature={selectedSignature}
@@ -376,7 +376,6 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
         <div
           ref={viewerContainerRef}
           className="flex-1 relative border rounded-lg overflow-hidden bg-muted/30"
-          style={{ minHeight: "600px" }}
         >
           {pdfFile ? (
             <>

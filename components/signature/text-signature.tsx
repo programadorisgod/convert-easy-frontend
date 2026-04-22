@@ -34,7 +34,7 @@ export function TextSignature({
   const [text, setText] = useState(initialText);
   const fontFamily = "Pacifico, cursive";
 
-  // Render text to canvas for export
+  // Render text to canvas for export (transparent background)
   const renderToCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -42,10 +42,8 @@ export function TextSignature({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear and fill white background
+    // Clear with transparent background
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
 
     if (!text.trim()) return;
 
@@ -94,7 +92,7 @@ export function TextSignature({
 
       {/* Preview with text centered */}
       <div 
-        className="border-2 border-dashed border-muted-foreground/25 rounded-lg bg-white flex items-center justify-center overflow-hidden p-2"
+        className="border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center overflow-hidden p-2"
         style={{ width, height }}
       >
         {text.trim() ? (

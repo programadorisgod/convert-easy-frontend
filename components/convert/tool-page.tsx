@@ -258,16 +258,7 @@ export function ToolPage({ config }: ToolPageProps) {
     return actionLabels[config.type] || "Procesar";
   };
 
-  const renderContent = () => {
-    // Special handling for sign type - use dedicated PDF signing page
-    if (config.type === "sign") {
-      return (
-        <div className="h-[600px]">
-          <PdfSignPage initialFile={file?.file || null} />
-        </div>
-      );
-    }
-
+  const renderStateContent = () => {
     switch (status) {
       case "idle":
         return renderFileSelector();
@@ -445,7 +436,7 @@ export function ToolPage({ config }: ToolPageProps) {
         <AlertCircle className="h-10 w-10 text-destructive" />
       </div>
       <h3 className="mb-2 text-xl font-semibold">Error en el procesamiento</h3>
-      <p className="mb-2 text-sm text-muted-foreground">{error}</p>
+      <p className="mb-2 text-muted-foreground">{error}</p>
 
       <div className="flex gap-3">
         <Button
@@ -466,6 +457,58 @@ export function ToolPage({ config }: ToolPageProps) {
       </div>
     </div>
   );
+
+  const renderContent = () => {
+    // Special handling for sign type - show header + full width PDF signing page
+    if (config.type === "sign") {
+      return (
+        <div className="container mx-auto px-4 pt-4">
+          <div className="mb-6">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                <Icon className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">{config.label}</h1>
+                <p className="text-sm text-muted-foreground">
+                  {config.description}
+                </p>
+              </div>
+            </div>
+          </div>
+          <PdfSignPage initialFile={file?.file || null} />
+        </div>
+      );
+    }
+
+    // Normal centered container
+    return (
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <Link
+          href="/"
+          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          ← Back to home
+        </Link>
+
+        <div className="mb-8">
+          <h1 className="mb-2 text-3xl font-bold">{config.title}</h1>
+          <p className="text-muted-foreground">{config.description}</p>
+        </div>
+
+        {renderStateContent()}
+      </div>
+    );
+  };
+
+  // For sign type, use container with full width
+  if (config.type === "sign") {
+    return (
+      <div className="min-h-screen bg-background">
+        {renderContent()}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

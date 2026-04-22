@@ -161,21 +161,19 @@ export function SignatureCanvas({
     lastPoint.current = null;
   }, []);
 
-  // Export signature as PNG data URL
+  // Export signature as PNG data URL with transparent background
   const handleExport = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !hasContent) return;
 
-    // Create a clean export canvas
+    // Create export canvas with transparent background
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = width;
     exportCanvas.height = height;
     const ctx = exportCanvas.getContext("2d");
     if (!ctx) return;
 
-    // Fill white background (PDF doesn't support transparency well)
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
+    // Keep transparent background (no fillRect)
 
     // Draw the signature
     ctx.drawImage(canvas, 0, 0);
