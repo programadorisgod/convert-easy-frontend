@@ -5,9 +5,9 @@
 
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import PDFViewer, { PDFViewerRef, PDFViewerProps } from "@embedpdf/react-pdf-viewer";
-import type { EmbedPdfContainer } from "@embedpdf/snippet";
+import type { EmbedPdfContainer, PluginRegistry } from "@embedpdf/snippet";
 
 export interface PdfViewerWrapperProps {
   /** PDF file to display */
@@ -24,6 +24,10 @@ export interface PdfViewerWrapperProps {
   onContainerResize?: (size: { width: number; height: number }) => void;
   /** Callback when PDF loads */
   onDocumentLoad?: (info: { numPages: number }) => void;
+  /** Callback when the embedpdf registry is ready */
+  onReady?: (registry: PluginRegistry) => void;
+  /** Overlay rendered inside the relative container (shares stacking context with embedpdf) */
+  overlay?: ReactNode;
   /** CSS class for container */
   className?: string;
   /** Enable scroll mode */
@@ -42,6 +46,8 @@ export function PdfViewerWrapper({
   onZoomChange,
   onContainerResize,
   onDocumentLoad,
+  onReady,
+  overlay,
   className,
   scroll = true,
   toolbar = true,
@@ -110,7 +116,9 @@ export function PdfViewerWrapper({
         config={viewerConfig}
         className="w-full h-full"
         onInit={handleInit}
+        onReady={onReady}
       />
+      {overlay}
     </div>
   );
 }

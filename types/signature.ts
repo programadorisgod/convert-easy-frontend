@@ -52,8 +52,18 @@ export interface SignPdfParams {
   containerSize: { width: number; height: number };
   /** PDF page dimensions in points */
   pageSize: { width: number; height: number };
-  /** Current zoom level (1.0 = 100%) */
+  /** Current zoom level (1.0 = 100%) — for backward compatibility */
   zoom: number;
+  /** Actual render scale from embedpdf zoom plugin's getState().currentZoomLevel (optional — falls back to zoom) */
+  actualScale?: number;
+  /** Horizontal scroll position of the viewer viewport (optional — defaults to 0) */
+  scrollLeft?: number;
+  /** Vertical scroll position of the viewer viewport (optional — defaults to 0) */
+  scrollTop?: number;
+  /** Page's X offset within the scroller e.g. (clientWidth - pageWidth * scale) / 2 (optional — defaults to 0) */
+  pageOffsetX?: number;
+  /** Page's Y offset within the scroller (optional — defaults to 0) */
+  pageOffsetY?: number;
 }
 
 /** Result from signing operation */

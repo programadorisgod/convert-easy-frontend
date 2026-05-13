@@ -6,6 +6,8 @@
 "use client";
 
 import { useCallback, useRef, useState, useEffect } from "react";
+import type { PluginRegistry } from "@embedpdf/react-pdf-viewer";
+import { ZoomPlugin, ViewportPlugin } from "@embedpdf/react-pdf-viewer";
 import { Upload, FileSignature, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,13 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
   const [isResizing, setIsResizing] = useState(false);
   const [activeHandle, setActiveHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number; startX: number; startY: number } | null>(null);
+
+  // Registry reference for embedpdf plugin access
+  const registryRef = useRef<PluginRegistry | null>(null);
+
+  const handleRegistryReady = useCallback((registry: PluginRegistry) => {
+    registryRef.current = registry;
+  }, []);
 
   // Signing
   const { status, sign } = usePdfSigning();
@@ -250,6 +259,46 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       return;
     }
 
+    // Try to get actual render metrics from embedpdf registry
+    let hasMetrics = false;
+    let actualScale: number | undefined;
+    let scrollLeft = 0;
+    let scrollTop = 0;
+    let pageOffsetX = 0;
+    let pageOffsetY = 0;
+
+    const registry = registryRef.current;
+    if (registry) {
+      try {
+        const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom");
+        const viewportPlugin = registry.getPlugin<ViewportPlugin>("viewport");
+
+        if (zoomPlugin) {
+          const zoomState = zoomPlugin.provides()?.getState();
+          if (zoomState && zoomState.currentZoomLevel > 0) {
+            actualScale = zoomState.currentZoomLevel;
+          }
+        }
+
+        if (viewportPlugin) {
+          const metrics = viewportPlugin.provides()?.getMetrics();
+          if (metrics) {
+            scrollLeft = metrics.scrollLeft;
+            scrollTop = metrics.scrollTop;
+            // Page is centered in the viewport
+            if (actualScale) {
+              pageOffsetX = Math.max(0, (metrics.clientWidth - pageSize.width * actualScale) / 2);
+              pageOffsetY = Math.max(0, (metrics.clientHeight - pageSize.height * actualScale) / 2);
+            }
+          }
+        }
+
+        hasMetrics = !!actualScale;
+      } catch (err) {
+        console.warn("Failed to get embedpdf metrics, falling back to legacy coords", err);
+      }
+    }
+
     const blob = await sign({
       pdfSource: pdfFile,
       signatureDataUrl: selectedSignature.dataUrl,
@@ -259,6 +308,14 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       containerSize,
       pageSize,
       zoom,
+      // Only pass embedpdf metrics if successfully retrieved
+      ...(hasMetrics ? {
+        actualScale,
+        scrollLeft,
+        scrollTop,
+        pageOffsetX,
+        pageOffsetY,
+      } : {}),
     });
 
     if (blob) {
@@ -286,7 +343,7 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
   const isSigning = status === "loading" || status === "signing";
 
   return (
-    <div className={cn("flex h-[calc(100vh-12rem)] gap-4 pt-4 px-4 pb-4", className)}>
+    <div className={cn("flex flex-1 min-h-0 gap-4 px-6 pb-4", className)}>
       {/* Sidebar - Signature Picker */}
       <div className="w-80 flex-shrink-0 border-r pr-4 overflow-y-auto bg-card/50 rounded-lg p-4">
         <SignaturePicker
@@ -310,7 +367,7 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       {/* Main area - PDF Viewer + Overlay */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center gap-3 mb-3 pb-3 border-b">
+        <div className="flex items-center gap-3 mb-3 pb-3 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
             <Input
               type="file"
@@ -385,48 +442,48 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                 initialZoom={zoom}
                 onPageChange={handlePageChange}
                 onZoomChange={handleZoomChange}
+                onReady={handleRegistryReady}
+                overlay={
+                  selectedSignature ? (
+                    <div
+                      className="absolute select-none"
+                      style={{
+                        left: overlayPosition.x,
+                        top: overlayPosition.y,
+                        width: overlaySize.width,
+                        height: overlaySize.height,
+                        cursor: isDragging ? "grabbing" : "grab",
+                        zIndex: 9999,
+                      }}
+                      onMouseDown={handleMouseDown}
+                    >
+                      <div className="relative w-full h-full border-2 border-dashed border-blue-500 rounded shadow-lg">
+                        <img
+                          src={selectedSignature.dataUrl}
+                          alt={selectedSignature.name}
+                          className="w-full h-full object-contain pointer-events-none"
+                          draggable={false}
+                        />
+                        
+                        {/* Resize handles */}
+                        {["nw", "ne", "sw", "se"].map((handle) => (
+                          <div
+                            key={handle}
+                            className={cn(
+                              "absolute w-3 h-3 bg-white border-2 border-blue-500 rounded-sm cursor-pointer hover:bg-blue-100",
+                              handle === "nw" && "-top-1.5 -left-1.5 cursor-nwse-resize",
+                              handle === "ne" && "-top-1.5 -right-1.5 cursor-nesw-resize",
+                              handle === "sw" && "-bottom-1.5 -left-1.5 cursor-nesw-resize",
+                              handle === "se" && "-bottom-1.5 -right-1.5 cursor-nwse-resize",
+                            )}
+                            onMouseDown={(e) => handleResizeMouseDown(e, handle)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : undefined
+                }
               />
-
-              {/* Signature Overlay - positioned over the viewer */}
-              {selectedSignature && (
-                <div
-                  className="absolute select-none"
-                  style={{
-                    left: overlayPosition.x,
-                    top: overlayPosition.y,
-                    width: overlaySize.width,
-                    height: overlaySize.height,
-                    cursor: isDragging ? "grabbing" : "grab",
-                    zIndex: 50,
-                  }}
-                  onMouseDown={handleMouseDown}
-                >
-                  {/* Signature image - removed extra padding */}
-                  <div className="relative w-full h-full border-2 border-dashed border-blue-500 rounded shadow-lg">
-                    <img
-                      src={selectedSignature.dataUrl}
-                      alt={selectedSignature.name}
-                      className="w-full h-full object-contain pointer-events-none"
-                      draggable={false}
-                    />
-                    
-                    {/* Resize handles - reduced size */}
-                    {["nw", "ne", "sw", "se"].map((handle) => (
-                      <div
-                        key={handle}
-                        className={cn(
-                          "absolute w-3 h-3 bg-white border-2 border-blue-500 rounded-sm cursor-pointer hover:bg-blue-100",
-                          handle === "nw" && "-top-1.5 -left-1.5 cursor-nwse-resize",
-                          handle === "ne" && "-top-1.5 -right-1.5 cursor-nesw-resize",
-                          handle === "sw" && "-bottom-1.5 -left-1.5 cursor-nesw-resize",
-                          handle === "se" && "-bottom-1.5 -right-1.5 cursor-nwse-resize",
-                        )}
-                        onMouseDown={(e) => handleResizeMouseDown(e, handle)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground">

@@ -13,52 +13,57 @@ import type {
 
 /**
  * Convert DOM coordinates to PDF coordinates.
- * Accounts for zoom level and coordinate system differences (PDF Y is from bottom).
+ * Uses proportional container-to-page scaling adjusted for the actual
+ * render scale from embedpdf's zoom level.
  */
 function domToPdfCoords(params: {
   domX: number;
   domY: number;
   sigWidth: number;
   sigHeight: number;
-  containerWidth: number;
-  containerHeight: number;
   pageWidth: number;
   pageHeight: number;
+  containerWidth: number;
+  containerHeight: number;
   zoom: number;
+  actualScale?: number;
+  scrollLeft?: number;
+  scrollTop?: number;
+  pageOffsetX?: number;
+  pageOffsetY?: number;
 }): { pdfX: number; pdfY: number; pdfWidth: number; pdfHeight: number } {
   const {
-    domX,
-    domY,
-    sigWidth,
-    sigHeight,
-    containerWidth,
-    containerHeight,
-    pageWidth,
-    pageHeight,
+    domX, domY, sigWidth, sigHeight,
+    pageWidth, pageHeight,
+    containerWidth, containerHeight,
     zoom,
+    actualScale: providedScale,
+    scrollLeft = 0,
+    scrollTop = 0,
+    pageOffsetX = 0,
+    pageOffsetY = 0,
   } = params;
 
-  // Scale factors between container and PDF page
+  // If actual render metrics are available (from embedpdf registry), use them
+  if (providedScale && providedScale > 0) {
+    const pdfX = (domX + scrollLeft - pageOffsetX) / providedScale;
+    const pdfYFromTop = (domY + scrollTop - pageOffsetY) / providedScale;
+    const pdfY = pageHeight - pdfYFromTop - (sigHeight / providedScale);
+    const pdfWidth = sigWidth / providedScale;
+    const pdfHeight = sigHeight / providedScale;
+    return { pdfX, pdfY, pdfWidth, pdfHeight };
+  }
+
+  // Fallback: proportional container-to-page scaling (legacy behavior)
   const scaleX = pageWidth / containerWidth;
   const scaleY = pageHeight / containerHeight;
+  const normalizedZoom = zoom || 1;
 
-  // Normalize DOM coords by inverting zoom effect
-  // (DOM coords are at current zoom level, we need base coords)
-  const normalizedX = domX / zoom;
-  const normalizedY = domY / zoom;
-
-  // Convert to PDF points (X is from left)
-  const pdfX = normalizedX * scaleX;
-
-  // PDF Y is from bottom, DOM Y is from top
-  // First get the normalized Y position, then scale, then flip
-  const pageScaledHeight = normalizedY * scaleY;
-  // Subtract signature height because we position by top-left corner
-  const pdfY = pageHeight - pageScaledHeight - sigHeight * scaleY;
-
-  // Signature dimensions also need scaling (accounting for zoom)
-  const pdfWidth = (sigWidth / zoom) * scaleX;
-  const pdfHeight = (sigHeight / zoom) * scaleY;
+  const pdfX = (domX / normalizedZoom) * scaleX;
+  const pageScaledHeight = (domY / normalizedZoom) * scaleY;
+  const pdfY = pageHeight - pageScaledHeight - (sigHeight / normalizedZoom) * scaleY;
+  const pdfWidth = (sigWidth / normalizedZoom) * scaleX;
+  const pdfHeight = (sigHeight / normalizedZoom) * scaleY;
 
   return { pdfX, pdfY, pdfWidth, pdfHeight };
 }
@@ -78,6 +83,11 @@ export async function signPdf(params: SignPdfParams): Promise<SignPdfResult> {
     containerSize,
     pageSize,
     zoom,
+    actualScale,
+    scrollLeft,
+    scrollTop,
+    pageOffsetX,
+    pageOffsetY,
   } = params;
 
   // Load the source PDF
@@ -110,11 +120,16 @@ export async function signPdf(params: SignPdfParams): Promise<SignPdfResult> {
     domY: position.y,
     sigWidth: size.width,
     sigHeight: size.height,
-    containerWidth: containerSize.width,
-    containerHeight: containerSize.height,
     pageWidth: actualPageWidth,
     pageHeight: actualPageHeight,
+    containerWidth: containerSize.width,
+    containerHeight: containerSize.height,
     zoom,
+    actualScale,
+    scrollLeft,
+    scrollTop,
+    pageOffsetX,
+    pageOffsetY,
   });
 
   // Load and embed the signature image

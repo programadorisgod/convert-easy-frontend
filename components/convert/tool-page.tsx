@@ -462,8 +462,8 @@ export function ToolPage({ config }: ToolPageProps) {
     // Special handling for sign type - show header + full width PDF signing page
     if (config.type === "sign") {
       return (
-        <div className="container mx-auto px-4 pt-4">
-          <div className="mb-6">
+        <div className="flex flex-col h-screen">
+          <div className="flex-shrink-0 mb-6 mx-6 pt-4">
             <div className="mb-3 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
                 <Icon className="h-6 w-6 text-primary" />
@@ -476,7 +476,10 @@ export function ToolPage({ config }: ToolPageProps) {
               </div>
             </div>
           </div>
-          <PdfSignPage initialFile={file?.file || null} />
+          <PdfSignPage
+            initialFile={file?.file || null}
+            className="flex-1 min-h-0"
+          />
         </div>
       );
     }
@@ -504,7 +507,7 @@ export function ToolPage({ config }: ToolPageProps) {
   // For sign type, use container with full width
   if (config.type === "sign") {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="bg-background">
         {renderContent()}
       </div>
     );
