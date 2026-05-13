@@ -53,9 +53,53 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
 
   // Registry reference for embedpdf plugin access
   const registryRef = useRef<PluginRegistry | null>(null);
+  // Reactive scroll tracking — updated on every viewport scroll change
+  const scrollRef = useRef({ x: 0, y: 0 });
+  // Store unsubscribe functions for cleanup
+  const cleanupsRef = useRef<Array<() => void>>([]);
 
   const handleRegistryReady = useCallback((registry: PluginRegistry) => {
     registryRef.current = registry;
+
+    // Subscribe to viewport scroll changes for accurate coordinate conversion
+    try {
+      const viewportPlugin = registry.getPlugin<ViewportPlugin>("viewport");
+      if (viewportPlugin) {
+        const viewport = viewportPlugin.provides();
+        if (viewport) {
+          // Get initial metrics
+          const initialMetrics = viewport.getMetrics();
+          if (initialMetrics) {
+            scrollRef.current = {
+              x: initialMetrics.scrollLeft,
+              y: initialMetrics.scrollTop,
+            };
+          }
+
+          // Subscribe to scroll changes
+          const unsubScroll = viewport.onScrollChange?.((event) => {
+            scrollRef.current = {
+              x: event.scrollMetrics.scrollLeft,
+              y: event.scrollMetrics.scrollTop,
+            };
+          });
+
+          if (unsubScroll) {
+            cleanupsRef.current.push(unsubScroll);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to subscribe to viewport scroll", err);
+    }
+  }, []);
+
+  // Cleanup scroll listeners on unmount
+  useEffect(() => {
+    return () => {
+      cleanupsRef.current.forEach((fn) => fn());
+      cleanupsRef.current = [];
+    };
   }, []);
 
   // Signing
@@ -201,21 +245,21 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
         setOverlayPosition({ x: newX, y: newY });
       } else if (isResizing && activeHandle) {
         // Resize maintaining aspect ratio
-        const deltaX = e.clientX - dragStart.x;
         const sigWidth = selectedSignature?.width || 200;
         const sigHeight = selectedSignature?.height || 80;
         const aspectRatio = sigWidth / sigHeight;
-        
+
         let newWidth = dragStart.startX;
         let newHeight = dragStart.startY;
 
-        if (activeHandle.includes("e")) newWidth = Math.max(50, dragStart.startX + deltaX);
-        if (activeHandle.includes("w")) newWidth = Math.max(50, dragStart.startX - deltaX);
+        if (activeHandle.includes("e")) newWidth = Math.max(50, dragStart.startX + dx);
+        if (activeHandle.includes("w")) newWidth = Math.max(50, dragStart.startX - dx);
         if (activeHandle.includes("s")) newHeight = Math.max(30, dragStart.startY + dy);
         if (activeHandle.includes("n")) newHeight = Math.max(30, dragStart.startY - dy);
 
-        // Maintain aspect ratio
-        if (activeHandle.includes("e") || activeHandle.includes("w")) {
+        // Maintain aspect ratio using the axis with the largest delta
+        // (prevents diagonal handles from ignoring the secondary axis)
+        if (Math.abs(dx) >= Math.abs(dy)) {
           newHeight = newWidth / aspectRatio;
         } else {
           newWidth = newHeight * aspectRatio;
@@ -259,13 +303,17 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       return;
     }
 
-    // Try to get actual render metrics from embedpdf registry
-    let hasMetrics = false;
+    // Get actual render metrics from embedpdf registry.
+    // If the registry is available, we get definitive values from the plugins.
+    // If not, fall back to the reactively-tracked scrollRef.
+    // These are passed through to domToPdfCoords which computes pageOffset
+    // INTERNALLY using the actual page dimensions from pdf-lib, avoiding
+    // stale pageSize from React state.
     let actualScale: number | undefined;
-    let scrollLeft = 0;
-    let scrollTop = 0;
-    let pageOffsetX = 0;
-    let pageOffsetY = 0;
+    let scrollLeft = scrollRef.current.x;
+    let scrollTop = scrollRef.current.y;
+    let viewportClientWidth: number | undefined;
+    let viewportClientHeight: number | undefined;
 
     const registry = registryRef.current;
     if (registry) {
@@ -285,19 +333,14 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
           if (metrics) {
             scrollLeft = metrics.scrollLeft;
             scrollTop = metrics.scrollTop;
-            // Page is centered in the viewport
-            if (actualScale) {
-              pageOffsetX = Math.max(0, (metrics.clientWidth - pageSize.width * actualScale) / 2);
-              pageOffsetY = Math.max(0, (metrics.clientHeight - pageSize.height * actualScale) / 2);
-            }
-            // Only use the new path when ALL metrics are valid:
-            // - actualScale is a positive number (zoom plugin initialized)
-            // - clientWidth > 0 and clientHeight > 0 (viewport metrics initialized, not default zeros)
-            hasMetrics = !!actualScale && metrics.clientWidth > 0 && metrics.clientHeight > 0;
+            viewportClientWidth = metrics.clientWidth;
+            viewportClientHeight = metrics.clientHeight;
+            // Update the reactive ref too so it's always fresh
+            scrollRef.current = { x: scrollLeft, y: scrollTop };
           }
         }
       } catch (err) {
-        console.warn("Failed to get embedpdf metrics, falling back to legacy coords", err);
+        console.warn("Failed to get embedpdf metrics", err);
       }
     }
 
@@ -310,14 +353,11 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       containerSize,
       pageSize,
       zoom,
-      // Only pass embedpdf metrics if successfully retrieved
-      ...(hasMetrics ? {
-        actualScale,
-        scrollLeft,
-        scrollTop,
-        pageOffsetX,
-        pageOffsetY,
-      } : {}),
+      actualScale,
+      scrollLeft,
+      scrollTop,
+      viewportClientWidth,
+      viewportClientHeight,
     });
 
     if (blob) {

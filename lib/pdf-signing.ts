@@ -13,8 +13,17 @@ import type {
 
 /**
  * Convert DOM coordinates to PDF coordinates.
- * Uses proportional container-to-page scaling adjusted for the actual
- * render scale from embedpdf's zoom level.
+ *
+ * Uses actual render metrics from embedpdf when available (via `actualScale`,
+ * `scrollLeft`, `scrollTop`, `viewportClientWidth`, `viewportClientHeight`).
+ *
+ * The overlay is `position: absolute` relative to the outer container and does
+ * NOT scroll with the PDF content. To map overlay coords to the scrolled page,
+ * we add scrollLeft/scrollTop (the page content has shifted, the overlay
+ * hasn't), then subtract the page centering offset.
+ *
+ * CRITICAL: pageOffsetX/Y is computed INTERNALLY using the actual pageWidth/
+ * pageHeight passed here, NOT from React state, avoiding stale-state bugs.
  */
 function domToPdfCoords(params: {
   domX: number;
@@ -26,11 +35,20 @@ function domToPdfCoords(params: {
   containerWidth: number;
   containerHeight: number;
   zoom: number;
+  /** Actual render scale from embedpdf ZoomPlugin (e.g. 0.75 for fit-width) */
   actualScale?: number;
+  /** Horizontal scroll of the embedpdf viewport */
   scrollLeft?: number;
+  /** Vertical scroll of the embedpdf viewport */
   scrollTop?: number;
+  /** Pre-computed page offset X (deprecated — computed from viewportClientWidth when available) */
   pageOffsetX?: number;
+  /** Pre-computed page offset Y (deprecated — computed from viewportClientHeight when available) */
   pageOffsetY?: number;
+  /** Viewport clientWidth from embedpdf ViewportMetrics (used to compute pageOffset internally) */
+  viewportClientWidth?: number;
+  /** Viewport clientHeight from embedpdf ViewportMetrics (used to compute pageOffset internally) */
+  viewportClientHeight?: number;
 }): { pdfX: number; pdfY: number; pdfWidth: number; pdfHeight: number } {
   const {
     domX, domY, sigWidth, sigHeight,
@@ -40,16 +58,23 @@ function domToPdfCoords(params: {
     actualScale: providedScale,
     scrollLeft = 0,
     scrollTop = 0,
-    pageOffsetX = 0,
-    pageOffsetY = 0,
+    pageOffsetX: precomputedOffsetX,
+    pageOffsetY: precomputedOffsetY,
+    viewportClientWidth,
+    viewportClientHeight,
   } = params;
 
   // If actual render metrics are available (from embedpdf registry), use them
   if (providedScale && providedScale > 0) {
-    // Overlay is position:absolute relative to the outer container and does NOT
-    // scroll with PDF content. To map overlay coords to the scrolled page,
-    // we add scrollLeft/scrollTop (the page content has shifted, the overlay
-    // hasn't), then subtract the page centering offset.
+    // Compute page centering offset INTERNALLY using actual page dimensions.
+    // This is the definitive fix for stale pageSize in React state.
+    const pageOffsetX = viewportClientWidth != null && viewportClientWidth > 0
+      ? Math.max(0, (viewportClientWidth - pageWidth * providedScale) / 2)
+      : (precomputedOffsetX ?? 0);
+    const pageOffsetY = viewportClientHeight != null && viewportClientHeight > 0
+      ? Math.max(0, (viewportClientHeight - pageHeight * providedScale) / 2)
+      : (precomputedOffsetY ?? 0);
+
     const relX = domX + scrollLeft - pageOffsetX;
     const relY = domY + scrollTop - pageOffsetY;
     const pdfX = relX / providedScale;
@@ -61,6 +86,8 @@ function domToPdfCoords(params: {
   }
 
   // Fallback: proportional container-to-page scaling (legacy behavior)
+  // NOTE: This path does NOT account for scroll — it's a best-effort for when
+  // the embedpdf registry is unavailable. Always prefer the accurate path.
   const scaleX = pageWidth / containerWidth;
   const scaleY = pageHeight / containerHeight;
 
@@ -96,6 +123,8 @@ export async function signPdf(params: SignPdfParams): Promise<SignPdfResult> {
     scrollTop,
     pageOffsetX,
     pageOffsetY,
+    viewportClientWidth,
+    viewportClientHeight,
   } = params;
 
   // Load the source PDF
@@ -111,16 +140,13 @@ export async function signPdf(params: SignPdfParams): Promise<SignPdfResult> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
 
   // Get page dimensions for coordinate translation
-  // If pageSize wasn't provided, try to get from PDF
-  let actualPageWidth = pageSize.width;
-  let actualPageHeight = pageSize.height;
-
-  if (!actualPageWidth || !actualPageHeight) {
-    const page = pdfDoc.getPage(targetPage - 1); // pdf-lib uses 0-index
-    const { width, height } = page.getSize();
-    actualPageWidth = width;
-    actualPageHeight = height;
-  }
+  // ALWAYS prefer the actual page size from pdf-lib over the passed pageSize,
+  // because pageSize comes from React state which may be stale (default 612x792)
+  // or incorrect if getPdfPageSize hasn't resolved yet.
+  const page = pdfDoc.getPage(targetPage - 1); // pdf-lib uses 0-index
+  const { width: pdfPageWidth, height: pdfPageHeight } = page.getSize();
+  const actualPageWidth = pdfPageWidth;
+  const actualPageHeight = pdfPageHeight;
 
   // Translate DOM coords to PDF coords
   const { pdfX, pdfY, pdfWidth, pdfHeight } = domToPdfCoords({
@@ -138,6 +164,8 @@ export async function signPdf(params: SignPdfParams): Promise<SignPdfResult> {
     scrollTop,
     pageOffsetX,
     pageOffsetY,
+    viewportClientWidth,
+    viewportClientHeight,
   });
 
   // Load and embed the signature image
@@ -149,7 +177,7 @@ export async function signPdf(params: SignPdfParams): Promise<SignPdfResult> {
   const image = await pdfDoc.embedPng(imageBytes);
 
   // Get the target page and embed the image
-  const page = pdfDoc.getPage(targetPage - 1);
+  // (page is already fetched above for size, reuse it)
   page.drawImage(image, {
     x: pdfX,
     y: pdfY,

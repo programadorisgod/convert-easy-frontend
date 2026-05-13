@@ -88,11 +88,18 @@ export function PdfViewerWrapper({
   );
 
   // Build config for PDFViewer
-  const viewerConfig = file
-    ? ({
+  // NOTE: initialPage is not applied because embedpdf has no config-level
+  // option yet. It would require programmatic scrollToPage() via the registry.
+  const viewerConfig: PDFViewerProps["config"] | undefined = file
+    ? {
         src: fileUrl() || "",
         theme: { preference: "system" as const },
-      } as PDFViewerProps["config"])
+        // Pass initial zoom so the viewer starts at the correct level
+        // (was previously ignored, causing zoom state mismatch)
+        ...(initialZoom !== 1.0 && initialZoom > 0
+          ? { zoom: { defaultZoomLevel: initialZoom } }
+          : {}),
+      }
     : undefined;
 
   if (!file) {

@@ -60,10 +60,16 @@ export interface SignPdfParams {
   scrollLeft?: number;
   /** Vertical scroll position of the viewer viewport (optional — defaults to 0) */
   scrollTop?: number;
-  /** Page's X offset within the scroller e.g. (clientWidth - pageWidth * scale) / 2 (optional — defaults to 0) */
+  /** Page's X offset within the scroller e.g. (clientWidth - pageWidth * scale) / 2 (optional — defaults to 0).
+   * DEPRECATED: Use viewportClientWidth instead — offset is computed internally from actual page dimensions. */
   pageOffsetX?: number;
-  /** Page's Y offset within the scroller (optional — defaults to 0) */
+  /** Page's Y offset within the scroller (optional — defaults to 0).
+   * DEPRECATED: Use viewportClientHeight instead — offset is computed internally from actual page dimensions. */
   pageOffsetY?: number;
+  /** Viewport clientWidth from embedpdf ViewportMetrics (used to compute pageOffset internally, avoiding stale pageSize) */
+  viewportClientWidth?: number;
+  /** Viewport clientHeight from embedpdf ViewportMetrics (used to compute pageOffset internally, avoiding stale pageSize) */
+  viewportClientHeight?: number;
 }
 
 /** Result from signing operation */
