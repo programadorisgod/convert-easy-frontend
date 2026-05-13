@@ -38,17 +38,20 @@ function domToPdfCoords(params: {
     containerWidth, containerHeight,
     zoom,
     actualScale: providedScale,
+    scrollLeft = 0,
+    scrollTop = 0,
     pageOffsetX = 0,
     pageOffsetY = 0,
   } = params;
 
   // If actual render metrics are available (from embedpdf registry), use them
   if (providedScale && providedScale > 0) {
-    // Overlay is position:absolute and does NOT scroll with PDF content.
-    // No need to add scrollLeft/scrollTop — the position is relative to the
-    // container and maps directly to page position (minus centering offset).
-    const relX = domX - pageOffsetX;
-    const relY = domY - pageOffsetY;
+    // Overlay is position:absolute relative to the outer container and does NOT
+    // scroll with PDF content. To map overlay coords to the scrolled page,
+    // we add scrollLeft/scrollTop (the page content has shifted, the overlay
+    // hasn't), then subtract the page centering offset.
+    const relX = domX + scrollLeft - pageOffsetX;
+    const relY = domY + scrollTop - pageOffsetY;
     const pdfX = relX / providedScale;
     const pdfYFromTop = relY / providedScale;
     const pdfY = pageHeight - pdfYFromTop - (sigHeight / providedScale);
