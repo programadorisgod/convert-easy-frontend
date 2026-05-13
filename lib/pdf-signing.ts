@@ -38,16 +38,19 @@ function domToPdfCoords(params: {
     containerWidth, containerHeight,
     zoom,
     actualScale: providedScale,
-    scrollLeft = 0,
-    scrollTop = 0,
     pageOffsetX = 0,
     pageOffsetY = 0,
   } = params;
 
   // If actual render metrics are available (from embedpdf registry), use them
   if (providedScale && providedScale > 0) {
-    const pdfX = (domX + scrollLeft - pageOffsetX) / providedScale;
-    const pdfYFromTop = (domY + scrollTop - pageOffsetY) / providedScale;
+    // Overlay is position:absolute and does NOT scroll with PDF content.
+    // No need to add scrollLeft/scrollTop — the position is relative to the
+    // container and maps directly to page position (minus centering offset).
+    const relX = domX - pageOffsetX;
+    const relY = domY - pageOffsetY;
+    const pdfX = relX / providedScale;
+    const pdfYFromTop = relY / providedScale;
     const pdfY = pageHeight - pdfYFromTop - (sigHeight / providedScale);
     const pdfWidth = sigWidth / providedScale;
     const pdfHeight = sigHeight / providedScale;
@@ -57,13 +60,15 @@ function domToPdfCoords(params: {
   // Fallback: proportional container-to-page scaling (legacy behavior)
   const scaleX = pageWidth / containerWidth;
   const scaleY = pageHeight / containerHeight;
-  const normalizedZoom = zoom || 1;
 
-  const pdfX = (domX / normalizedZoom) * scaleX;
-  const pageScaledHeight = (domY / normalizedZoom) * scaleY;
-  const pdfY = pageHeight - pageScaledHeight - (sigHeight / normalizedZoom) * scaleY;
-  const pdfWidth = (sigWidth / normalizedZoom) * scaleX;
-  const pdfHeight = (sigHeight / normalizedZoom) * scaleY;
+  const normalizedX = domX / zoom;
+  const normalizedY = domY / zoom;
+
+  const pdfX = normalizedX * scaleX;
+  const pageScaledHeight = normalizedY * scaleY;
+  const pdfY = pageHeight - pageScaledHeight - sigHeight * scaleY;
+  const pdfWidth = (sigWidth / zoom) * scaleX;
+  const pdfHeight = (sigHeight / zoom) * scaleY;
 
   return { pdfX, pdfY, pdfWidth, pdfHeight };
 }

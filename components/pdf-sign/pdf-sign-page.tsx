@@ -290,10 +290,12 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
               pageOffsetX = Math.max(0, (metrics.clientWidth - pageSize.width * actualScale) / 2);
               pageOffsetY = Math.max(0, (metrics.clientHeight - pageSize.height * actualScale) / 2);
             }
+            // Only use the new path when ALL metrics are valid:
+            // - actualScale is a positive number (zoom plugin initialized)
+            // - clientWidth > 0 and clientHeight > 0 (viewport metrics initialized, not default zeros)
+            hasMetrics = !!actualScale && metrics.clientWidth > 0 && metrics.clientHeight > 0;
           }
         }
-
-        hasMetrics = !!actualScale;
       } catch (err) {
         console.warn("Failed to get embedpdf metrics, falling back to legacy coords", err);
       }
