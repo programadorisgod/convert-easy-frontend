@@ -36,6 +36,22 @@ export interface SignatureSize {
 /** Combined position and size */
 export interface SignatureRect extends SignaturePosition, SignatureSize {}
 
+/**
+ * Pre-computed PDF coordinates as fractions of page dimensions (0-1 range).
+ * Computed via getBoundingClientRect() of overlay vs rendered page element,
+ * bypassing the fragile embedpdf plugin-based coordinate conversion.
+ */
+export interface PrecomputedPdfCoords {
+  /** overlay left / page width — fraction (0-1) from page left edge */
+  fractionX: number;
+  /** overlay top / page height — fraction (0-1) from page top edge */
+  fractionY: number;
+  /** overlay width / page width — fraction (0-1) of page width */
+  fractionWidth: number;
+  /** overlay height / page height — fraction (0-1) of page height */
+  fractionHeight: number;
+}
+
 /** Parameters for signing a PDF */
 export interface SignPdfParams {
   /** Source PDF file */
@@ -70,6 +86,12 @@ export interface SignPdfParams {
   viewportClientWidth?: number;
   /** Viewport clientHeight from embedpdf ViewportMetrics (used to compute pageOffset internally, avoiding stale pageSize) */
   viewportClientHeight?: number;
+  /**
+   * Pre-computed PDF coordinates as fractions (0-1) of page dimensions.
+   * When provided, signPdf uses this DIRECTLY instead of the fragile
+   * domToPdfCoords conversion — the definitive coordinate fix.
+   */
+  precomputedPdfCoords?: PrecomputedPdfCoords;
 }
 
 /** Result from signing operation */

@@ -16,6 +16,7 @@ import type {
   StoredSignature,
   SignaturePosition,
   SignatureSize,
+  PrecomputedPdfCoords,
 } from "@/types/signature";
 import { useSignatureStore } from "@/hooks/use-signature-store";
 import { usePdfSigning } from "@/hooks/use-pdf-signing";
@@ -107,6 +108,8 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
 
   // Container ref for overlay positioning
   const viewerContainerRef = useRef<HTMLDivElement>(null);
+  // Ref to overlay div itself — for getBoundingClientRect() based coordinate calculation
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
 
   // Update container size on resize
@@ -303,44 +306,63 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       return;
     }
 
-    // Get actual render metrics from embedpdf registry.
-    // If the registry is available, we get definitive values from the plugins.
-    // If not, fall back to the reactively-tracked scrollRef.
-    // These are passed through to domToPdfCoords which computes pageOffset
-    // INTERNALLY using the actual page dimensions from pdf-lib, avoiding
-    // stale pageSize from React state.
+    // PREFERRED PATH: precompute PDF coords from getBoundingClientRect of
+    // the overlay vs the rendered page element. This completely bypasses
+    // embedpdf's internal plugin APIs (zoom, scroll, viewport) and works
+    // with ANY scroll/zoom/offset — it reads the actual rendered DOM positions.
+    let precomputedPdfCoords: PrecomputedPdfCoords | undefined;
+
+    // Also need fallback params (will be undefined if DOM path succeeds)
     let actualScale: number | undefined;
     let scrollLeft = scrollRef.current.x;
     let scrollTop = scrollRef.current.y;
     let viewportClientWidth: number | undefined;
     let viewportClientHeight: number | undefined;
 
-    const registry = registryRef.current;
-    if (registry) {
-      try {
-        const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom");
-        const viewportPlugin = registry.getPlugin<ViewportPlugin>("viewport");
+    const overlayEl = overlayRef.current;
+    const pageEl = viewerContainerRef.current?.querySelector(
+      '[data-page-number]'
+    );
 
-        if (zoomPlugin) {
-          const zoomState = zoomPlugin.provides()?.getState();
-          if (zoomState && zoomState.currentZoomLevel > 0) {
-            actualScale = zoomState.currentZoomLevel;
-          }
-        }
+    if (overlayEl && pageEl) {
+      // DOM ground truth — getBoundingClientRect ignores scroll/transform
+      const overlayRect = overlayEl.getBoundingClientRect();
+      const pageRect = pageEl.getBoundingClientRect();
 
-        if (viewportPlugin) {
-          const metrics = viewportPlugin.provides()?.getMetrics();
-          if (metrics) {
-            scrollLeft = metrics.scrollLeft;
-            scrollTop = metrics.scrollTop;
-            viewportClientWidth = metrics.clientWidth;
-            viewportClientHeight = metrics.clientHeight;
-            // Update the reactive ref too so it's always fresh
-            scrollRef.current = { x: scrollLeft, y: scrollTop };
+      precomputedPdfCoords = {
+        fractionX: (overlayRect.left - pageRect.left) / pageRect.width,
+        fractionY: (overlayRect.top - pageRect.top) / pageRect.height,
+        fractionWidth: overlayRect.width / pageRect.width,
+        fractionHeight: overlayRect.height / pageRect.height,
+      };
+    } else {
+      // FALLBACK: embedpdf registry-based metric reading (less reliable)
+      const registry = registryRef.current;
+      if (registry) {
+        try {
+          const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom");
+          const viewportPlugin = registry.getPlugin<ViewportPlugin>("viewport");
+
+          if (zoomPlugin) {
+            const zoomState = zoomPlugin.provides()?.getState();
+            if (zoomState && zoomState.currentZoomLevel > 0) {
+              actualScale = zoomState.currentZoomLevel;
+            }
           }
+
+          if (viewportPlugin) {
+            const metrics = viewportPlugin.provides()?.getMetrics();
+            if (metrics) {
+              scrollLeft = metrics.scrollLeft;
+              scrollTop = metrics.scrollTop;
+              viewportClientWidth = metrics.clientWidth;
+              viewportClientHeight = metrics.clientHeight;
+              scrollRef.current = { x: scrollLeft, y: scrollTop };
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to get embedpdf metrics", err);
         }
-      } catch (err) {
-        console.warn("Failed to get embedpdf metrics", err);
       }
     }
 
@@ -358,6 +380,7 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       scrollTop,
       viewportClientWidth,
       viewportClientHeight,
+      precomputedPdfCoords,
     });
 
     if (blob) {
@@ -488,6 +511,7 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                 overlay={
                   selectedSignature ? (
                     <div
+                      ref={overlayRef}
                       className="absolute select-none"
                       style={{
                         left: overlayPosition.x,

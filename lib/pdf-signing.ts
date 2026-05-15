@@ -149,24 +149,41 @@ export async function signPdf(params: SignPdfParams): Promise<SignPdfResult> {
   const actualPageHeight = pdfPageHeight;
 
   // Translate DOM coords to PDF coords
-  const { pdfX, pdfY, pdfWidth, pdfHeight } = domToPdfCoords({
-    domX: position.x,
-    domY: position.y,
-    sigWidth: size.width,
-    sigHeight: size.height,
-    pageWidth: actualPageWidth,
-    pageHeight: actualPageHeight,
-    containerWidth: containerSize.width,
-    containerHeight: containerSize.height,
-    zoom,
-    actualScale,
-    scrollLeft,
-    scrollTop,
-    pageOffsetX,
-    pageOffsetY,
-    viewportClientWidth,
-    viewportClientHeight,
-  });
+  // PREFERRED PATH: precomputed fractions from getBoundingClientRect
+  // (bypasses all embedpdf plugin API fragility — works with any scroll/zoom/offset)
+  let pdfX: number, pdfY: number, pdfWidth: number, pdfHeight: number;
+
+  if (params.precomputedPdfCoords) {
+    const { fractionX, fractionY, fractionWidth, fractionHeight } = params.precomputedPdfCoords;
+    pdfX = fractionX * actualPageWidth;
+    pdfY = (1 - fractionY - fractionHeight) * actualPageHeight;
+    pdfWidth = fractionWidth * actualPageWidth;
+    pdfHeight = fractionHeight * actualPageHeight;
+  } else {
+    // FALLBACK: existing domToPdfCoords path (embedpdf plugin-based or legacy)
+    const coords = domToPdfCoords({
+      domX: position.x,
+      domY: position.y,
+      sigWidth: size.width,
+      sigHeight: size.height,
+      pageWidth: actualPageWidth,
+      pageHeight: actualPageHeight,
+      containerWidth: containerSize.width,
+      containerHeight: containerSize.height,
+      zoom,
+      actualScale,
+      scrollLeft,
+      scrollTop,
+      pageOffsetX,
+      pageOffsetY,
+      viewportClientWidth,
+      viewportClientHeight,
+    });
+    pdfX = coords.pdfX;
+    pdfY = coords.pdfY;
+    pdfWidth = coords.pdfWidth;
+    pdfHeight = coords.pdfHeight;
+  }
 
   // Load and embed the signature image
   // Extract base64 data (remove data:image/png;base64, prefix if present)
