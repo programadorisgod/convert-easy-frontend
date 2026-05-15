@@ -108,8 +108,9 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
 
   // Container ref for overlay positioning
   const viewerContainerRef = useRef<HTMLDivElement>(null);
-  // Ref to overlay div itself — for getBoundingClientRect() based coordinate calculation
-  const overlayRef = useRef<HTMLDivElement>(null);
+  // Ref to overlay image — for getBoundingClientRect() based coordinate calculation
+  // Points to the <img> element (not the outer div) to exclude the 2px border
+  const overlayRef = useRef<HTMLImageElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
 
   // Update container size on resize
@@ -320,9 +321,13 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
     let viewportClientHeight: number | undefined;
 
     const overlayEl = overlayRef.current;
-    const pageEl = viewerContainerRef.current?.querySelector(
+    // Find the actual rendered page element.
+    // Prefer the <canvas> inside the page layer (exact rendered area, no padding),
+    // fall back to the page container itself if no canvas found.
+    const pageContainer = viewerContainerRef.current?.querySelector(
       '[data-page-number]'
     );
+    const pageEl = pageContainer?.querySelector('canvas') ?? pageContainer;
 
     if (overlayEl && pageEl) {
       // DOM ground truth — getBoundingClientRect ignores scroll/transform
@@ -511,7 +516,6 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                 overlay={
                   selectedSignature ? (
                     <div
-                      ref={overlayRef}
                       className="absolute select-none"
                       style={{
                         left: overlayPosition.x,
@@ -525,6 +529,7 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                     >
                       <div className="relative w-full h-full border-2 border-dashed border-blue-500 rounded shadow-lg">
                         <img
+                          ref={overlayRef}
                           src={selectedSignature.dataUrl}
                           alt={selectedSignature.name}
                           className="w-full h-full object-contain pointer-events-none"
