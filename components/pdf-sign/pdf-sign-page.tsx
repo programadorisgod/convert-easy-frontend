@@ -108,9 +108,12 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
 
   // Container ref for overlay positioning
   const viewerContainerRef = useRef<HTMLDivElement>(null);
-  // Ref to overlay image — for getBoundingClientRect() based coordinate calculation
-  // Points to the <img> element (not the outer div) to exclude the 2px border
-  const overlayRef = useRef<HTMLImageElement>(null);
+  // Ref to overlay DIV — for getBoundingClientRect() position measurement
+  // The user positions the visible edge of the overlay (the dashed border),
+  // which is the outer div. We measure this for ACCURATE POSITION.
+  const overlayRef = useRef<HTMLDivElement>(null);
+  // Ref to overlay IMG — for actual rendered image SIZE (excludes the 2px border)
+  const overlayImgRef = useRef<HTMLImageElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
 
   // Update container size on resize
@@ -320,7 +323,8 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
     let viewportClientWidth: number | undefined;
     let viewportClientHeight: number | undefined;
 
-    const overlayEl = overlayRef.current;
+    const overlayEl = overlayRef.current;   // outer div (position ground truth)
+    const overlayImgEl = overlayImgRef.current; // img element (size ground truth, excludes border)
     // Find the actual rendered page element.
     // Prefer the <canvas> inside the page layer (exact rendered area, no padding),
     // fall back to the page container itself if no canvas found.
@@ -332,13 +336,16 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
     if (overlayEl && pageEl) {
       // DOM ground truth — getBoundingClientRect ignores scroll/transform
       const overlayRect = overlayEl.getBoundingClientRect();
+      const imgRect = overlayImgEl?.getBoundingClientRect() ?? overlayRect;
       const pageRect = pageEl.getBoundingClientRect();
 
+      // Use overlay DIV rect for POSITION (matches what user positioned visually)
+      // Use IMG rect for SIZE (excludes the 2px border from inner div)
       precomputedPdfCoords = {
         fractionX: (overlayRect.left - pageRect.left) / pageRect.width,
         fractionY: (overlayRect.top - pageRect.top) / pageRect.height,
-        fractionWidth: overlayRect.width / pageRect.width,
-        fractionHeight: overlayRect.height / pageRect.height,
+        fractionWidth: imgRect.width / pageRect.width,
+        fractionHeight: imgRect.height / pageRect.height,
       };
     } else {
       // FALLBACK: embedpdf registry-based metric reading (less reliable)
@@ -516,6 +523,7 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                 overlay={
                   selectedSignature ? (
                     <div
+                      ref={overlayRef}
                       className="absolute select-none"
                       style={{
                         left: overlayPosition.x,
@@ -529,7 +537,7 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
                     >
                       <div className="relative w-full h-full border-2 border-dashed border-blue-500 rounded shadow-lg">
                         <img
-                          ref={overlayRef}
+                          ref={overlayImgRef}
                           src={selectedSignature.dataUrl}
                           alt={selectedSignature.name}
                           className="w-full h-full object-contain pointer-events-none"
