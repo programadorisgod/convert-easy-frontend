@@ -62,6 +62,31 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
   const handleRegistryReady = useCallback((registry: PluginRegistry) => {
     registryRef.current = registry;
 
+    // Subscribe to zoom changes to keep React state in sync
+    try {
+      const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom");
+      if (zoomPlugin) {
+        const zoomCapability = zoomPlugin.provides();
+        if (zoomCapability) {
+          // Get initial zoom level
+          const zoomState = zoomCapability.getState();
+          if (zoomState && zoomState.currentZoomLevel > 0) {
+            setZoom(zoomState.currentZoomLevel);
+          }
+
+          // Subscribe to live zoom changes
+          const unsubZoom = zoomCapability.onZoomChange?.((event) => {
+            setZoom(event.newZoom);
+          });
+          if (unsubZoom) {
+            cleanupsRef.current.push(unsubZoom);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to subscribe to zoom changes", err);
+    }
+
     // Subscribe to viewport scroll changes for accurate coordinate conversion
     try {
       const viewportPlugin = registry.getPlugin<ViewportPlugin>("viewport");
@@ -310,72 +335,103 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       return;
     }
 
-    // PREFERRED PATH: precompute PDF coords from getBoundingClientRect of
-    // the overlay vs the rendered page element. This completely bypasses
-    // embedpdf's internal plugin APIs (zoom, scroll, viewport) and works
-    // with ANY scroll/zoom/offset — it reads the actual rendered DOM positions.
+    // PREFERRED PATH: compute PDF coords from known values (overlay position,
+    // container size, zoom, scroll, and actual page dimensions from pdf-lib).
+    // This completely bypasses the need to find DOM elements inside embedpdf.
     let precomputedPdfCoords: PrecomputedPdfCoords | undefined;
 
-    // Also need fallback params (will be undefined if DOM path succeeds)
+    // Also need fallback params
     let actualScale: number | undefined;
     let scrollLeft = scrollRef.current.x;
     let scrollTop = scrollRef.current.y;
     let viewportClientWidth: number | undefined;
     let viewportClientHeight: number | undefined;
 
-    const overlayEl = overlayRef.current;   // outer div (position ground truth)
-    const overlayImgEl = overlayImgRef.current; // img element (size ground truth, excludes border)
-    // Find the actual rendered page element.
-    // Prefer the <canvas> inside the page layer (exact rendered area, no padding),
-    // fall back to the page container itself if no canvas found.
-    const pageContainer = viewerContainerRef.current?.querySelector(
-      '[data-page-number]'
-    );
-    const pageEl = pageContainer?.querySelector('canvas') ?? pageContainer;
+    const overlayEl = overlayRef.current;
+    const overlayImgEl = overlayImgRef.current;
 
-    if (overlayEl && pageEl) {
-      // DOM ground truth — getBoundingClientRect ignores scroll/transform
-      const overlayRect = overlayEl.getBoundingClientRect();
-      const imgRect = overlayImgEl?.getBoundingClientRect() ?? overlayRect;
-      const pageRect = pageEl.getBoundingClientRect();
-
-      // Use overlay DIV rect for POSITION (matches what user positioned visually)
-      // Use IMG rect for SIZE (excludes the 2px border from inner div)
-      precomputedPdfCoords = {
-        fractionX: (overlayRect.left - pageRect.left) / pageRect.width,
-        fractionY: (overlayRect.top - pageRect.top) / pageRect.height,
-        fractionWidth: imgRect.width / pageRect.width,
-        fractionHeight: imgRect.height / pageRect.height,
-      };
-    } else {
-      // FALLBACK: embedpdf registry-based metric reading (less reliable)
+    // --- MATH APPROACH: compute page position from zoom + container + scroll ---
+    // The overlay is position:absolute within containerRef, with (left, top) =
+    // (overlayPosition.x, overlayPosition.y).
+    // The page is rendered inside PDFViewer (same container), at:
+    //   pageX = pageOffsetX - scrollLeft
+    //   pageY = pageOffsetY - scrollTop
+    // where pageOffset centers the page in the container at scroll=0.
+    //
+    // We compute pageDisplaySize from actual page dimensions × zoom,
+    // then derive the fractions directly — no DOM querying needed.
+    {
+      // Get the actual zoom level: prefer ZoomPlugin (live), fall back to React state
+      let effectiveScale = zoom;
       const registry = registryRef.current;
       if (registry) {
         try {
           const zoomPlugin = registry.getPlugin<ZoomPlugin>("zoom");
-          const viewportPlugin = registry.getPlugin<ViewportPlugin>("viewport");
-
-          if (zoomPlugin) {
-            const zoomState = zoomPlugin.provides()?.getState();
-            if (zoomState && zoomState.currentZoomLevel > 0) {
-              actualScale = zoomState.currentZoomLevel;
-            }
+          const zoomState = zoomPlugin?.provides()?.getState();
+          if (zoomState && zoomState.currentZoomLevel > 0) {
+            effectiveScale = zoomState.currentZoomLevel;
           }
-
-          if (viewportPlugin) {
-            const metrics = viewportPlugin.provides()?.getMetrics();
-            if (metrics) {
-              scrollLeft = metrics.scrollLeft;
-              scrollTop = metrics.scrollTop;
-              viewportClientWidth = metrics.clientWidth;
-              viewportClientHeight = metrics.clientHeight;
-              scrollRef.current = { x: scrollLeft, y: scrollTop };
-            }
-          }
-        } catch (err) {
-          console.warn("Failed to get embedpdf metrics", err);
+        } catch {
+          // use zoom from React state
         }
       }
+
+      // Get the ACTUAL page size from the PDF (not from React state which is
+      // always the default 612×792 because onPageChange is never called by PdfViewerWrapper)
+      let actualPageW = pageSize.width;
+      let actualPageH = pageSize.height;
+      if (pdfFile) {
+        try {
+          const actualSize = await getPdfPageSize(pdfFile, currentPage + 1);
+          actualPageW = actualSize.width;
+          actualPageH = actualSize.height;
+        } catch {
+          // fall back to React state
+        }
+      }
+
+      // Page display dimensions in CSS pixels at the current zoom
+      const pageDisplayW = actualPageW * effectiveScale;
+      const pageDisplayH = actualPageH * effectiveScale;
+
+      // Page centering offset within the container (same reference frame as the overlay)
+      const pageOffsetX = Math.max(0, (containerSize.width - pageDisplayW) / 2);
+      const pageOffsetY = Math.max(0, (containerSize.height - pageDisplayH) / 2);
+
+      // Overlay position RELATIVE to the page's top-left corner
+      const relX = overlayPosition.x + scrollLeft - pageOffsetX;
+      const relY = overlayPosition.y + scrollTop - pageOffsetY;
+
+      // Signature image excludes the 2px border on each side
+      const sigImgW = overlaySize.width - 4;
+      const sigImgH = overlaySize.height - 4;
+
+      // Fractions of the page
+      precomputedPdfCoords = {
+        fractionX: relX / pageDisplayW,
+        fractionY: relY / pageDisplayH,
+        fractionWidth: sigImgW / pageDisplayW,
+        fractionHeight: sigImgH / pageDisplayH,
+      };
+
+      actualScale = effectiveScale;
+    }
+
+    // Keep registry-based info for context (not used when precomputedPdfCoords is set)
+    try {
+      const registry = registryRef.current;
+      if (registry) {
+        const viewportPlugin = registry.getPlugin<ViewportPlugin>("viewport");
+        if (viewportPlugin) {
+          const metrics = viewportPlugin.provides()?.getMetrics();
+          if (metrics) {
+            viewportClientWidth = metrics.clientWidth;
+            viewportClientHeight = metrics.clientHeight;
+          }
+        }
+      }
+    } catch {
+      // non-critical
     }
 
     const blob = await sign({
