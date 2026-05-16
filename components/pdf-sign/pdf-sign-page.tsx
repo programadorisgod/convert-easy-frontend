@@ -394,9 +394,34 @@ export function PdfSignPage({ initialFile, className }: PdfSignPageProps) {
       const pageDisplayW = actualPageW * effectiveScale;
       const pageDisplayH = actualPageH * effectiveScale;
 
-      // Page centering offset within the container (same reference frame as the overlay)
-      const pageOffsetX = Math.max(0, (containerSize.width - pageDisplayW) / 2);
-      const pageOffsetY = Math.max(0, (containerSize.height - pageDisplayH) / 2);
+      // Get actual viewport dimensions from embedpdf (excludes internal toolbar).
+      // The page is centered within the scrollable viewport area, NOT the full container.
+      // The overlay is positioned relative to the full container, so we must account
+      // for the toolbar offset between container and viewport.
+      let viewportContentW = containerSize.width;
+      let viewportContentH = containerSize.height;
+      if (registry) {
+        try {
+          const vpPlugin = registry.getPlugin<ViewportPlugin>("viewport");
+          const metrics = vpPlugin?.provides()?.getMetrics();
+          if (metrics?.clientHeight && metrics.clientHeight > 0) {
+            viewportContentH = metrics.clientHeight;
+          }
+          if (metrics?.clientWidth && metrics.clientWidth > 0) {
+            viewportContentW = metrics.clientWidth;
+          }
+        } catch {
+          // fallback to containerSize
+        }
+      }
+
+      // Toolbar offset = difference between full container and scrollable viewport area
+      const toolbarOffsetY = containerSize.height - viewportContentH;
+      const toolbarOffsetX = containerSize.width - viewportContentW;
+
+      // Page offset = toolbar offset + centering within the viewport area
+      const pageOffsetX = toolbarOffsetX + Math.max(0, (viewportContentW - pageDisplayW) / 2);
+      const pageOffsetY = toolbarOffsetY + Math.max(0, (viewportContentH - pageDisplayH) / 2);
 
       // Overlay position RELATIVE to the page's top-left corner
       const relX = overlayPosition.x + scrollLeft - pageOffsetX;
