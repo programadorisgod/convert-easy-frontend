@@ -195,7 +195,105 @@ Pass to wrapper:
 
 ---
 
-## Capability: pdf-coordinate-translation
+## Resolution: Final Coordinate Translation Strategy
+
+The coordinate translation went through multiple iterations before reaching the correct solution. Below is the definitive approach that works.
+
+### The Final Approach: Math-Based with Viewport Metrics
+
+The overlay is `position:absolute` within `viewerContainerRef` (the outer container div). The PDF page is rendered inside embedpdf's Shadow DOM, centered within the **scrollable viewport area** (NOT the full container). The key insight: embedpdf has an internal toolbar that shifts the scrollable viewport down relative to the container.
+
+**Coordinate chain:**
+
+```
+container (overlay positioned here)
+  ├─ embedpdf toolbar (internal, height = toolbarOffsetY)
+  └─ scrollable viewport (clientWidth × clientHeight from ViewportPlugin)
+      └─ page (centered within viewport at current zoom)
+```
+
+**Formula:**
+
+```typescript
+// 1. Get actual zoom from ZoomPlugin (live value, not React state)
+effectiveScale = ZoomPlugin.getState().currentZoomLevel
+
+// 2. Get actual page size from pdf-lib (not React state which is stale)
+actualPageW, actualPageH = getPdfPageSize(pdfFile, currentPage)
+
+// 3. Get viewport dimensions from ViewportPlugin (excludes toolbar)
+viewportContentW = ViewportPlugin.getMetrics().clientWidth
+viewportContentH = ViewportPlugin.getMetrics().clientHeight
+// Fallback: use containerSize if metrics unavailable
+
+// 4. Compute toolbar offset (difference between container and viewport)
+toolbarOffsetY = containerSize.height - viewportContentH
+toolbarOffsetX = containerSize.width - viewportContentW
+
+// 5. Page display size at current zoom
+pageDisplayW = actualPageW * effectiveScale
+pageDisplayH = actualPageH * effectiveScale
+
+// 6. Page offset = toolbar offset + centering within viewport
+pageOffsetX = toolbarOffsetX + max(0, (viewportContentW - pageDisplayW) / 2)
+pageOffsetY = toolbarOffsetY + max(0, (viewportContentH - pageDisplayH) / 2)
+
+// 7. Position relative to page top-left
+relX = overlayPosition.x + scrollLeft - pageOffsetX
+relY = overlayPosition.y + scrollTop - pageOffsetY
+
+// 8. Convert to fractions (0-1 range)
+fractionX = relX / pageDisplayW
+fractionY = relY / pageDisplayH
+fractionWidth = (overlaySize.width - 4) / pageDisplayW   // -4 for 2px border each side
+fractionHeight = (overlaySize.height - 4) / pageDisplayH
+
+// 9. In signPdf(), convert fractions to PDF points
+pdfX = fractionX * actualPageWidth
+pdfY = (1 - fractionY - fractionHeight) * actualPageHeight
+pdfWidth = fractionWidth * actualPageWidth
+pdfHeight = fractionHeight * actualPageHeight
+```
+
+### Bugs Fixed Through Iteration
+
+| Iteration | Bug | Root Cause | Fix |
+|-----------|-----|------------|-----|
+| #1 | Signature completely wrong position | `domToPdfCoords` used `containerWidth/pageWidth` scaling, ignored scroll and centering | Added `renderScale`, `scrollOffset`, `clientWidth/Height` from embedpdf plugins |
+| #2 | Signature disappeared in exported PDF | `domToPdfCoords` new path activated when viewport metrics were still zeros (default) | Guarded metrics validation; added `actualScale` check |
+| #3 | Signature offset on long PDFs / non-Letter sizes | `scrollTop` was added to formula when overlay doesn't scroll with embedpdf content | Removed scroll from new path; added scroll back when overlay IS relative to scrolled container |
+| #4 | Signature still offset by ~10px | Assumed page centered in full container, but embedpdf has `viewportGap` (10px padding) | Tried using `viewportGap` — this was INCORRECT (see #5) |
+| #5 | Signature offset WORSENED | Tried DOM-based `getBoundingClientRect` to find page element, but embedpdf uses Shadow DOM — selectors never matched | Reverted to math-based approach |
+| #6 (FINAL) | Small residual offset (~10-20px) | Page is centered within **scrollable viewport**, NOT full container. embedpdf has internal toolbar that shifts viewport down | Use `ViewportPlugin.getMetrics().clientWidth/clientHeight` to get viewport area, compute toolbar offset, then center within viewport |
+
+### Key Learnings
+
+1. **Shadow DOM**: embedpdf renders inside a web component's Shadow Root. No `querySelector` from light DOM can access internal elements. DOM-based approaches are impossible.
+
+2. **Stale React state**: `pageSize` in React state is always the default (612×792) because `onPageChange` is never called by `PdfViewerWrapper`. Always read actual page size from pdf-lib at signing time.
+
+3. **Zoom state sync**: React `zoom` state may diverge from embedpdf's actual zoom. Subscribe to `ZoomPlugin.onZoomChange` to keep in sync, or read `getState().currentZoomLevel` at signing time.
+
+4. **Toolbar offset**: The difference between `containerSize` and `ViewportPlugin.getMetrics().clientWidth/clientHeight` is the embedpdf internal toolbar height. This must be added to the page offset calculation.
+
+5. **Page centering**: The page IS centered, but within the scrollable viewport area (after toolbar offset), not the full container.
+
+6. **2px border**: The overlay has a 2px dashed border on all sides. The signature image inside excludes this border, so subtract 4px (2px each side) from overlay size for accurate signature dimensions.
+
+7. **Fraction-based coords**: Using fractions (0-1 range) decouples coordinate calculation from PDF point conversion. The fractions are computed from DOM measurements, then converted to PDF points using actual page dimensions from pdf-lib — eliminating any dependency on React state during signing.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `components/pdf-sign/pdf-sign-page.tsx` | Math-based coordinate computation in `handleApplySignature`; zoom subscription in `handleRegistryReady`; two refs for overlay (div for position, img for size) |
+| `lib/pdf-signing.ts` | `PrecomputedPdfCoords` fast path in `signPdf()`; `getPdfPageSize()` function |
+| `types/signature.ts` | `PrecomputedPdfCoords` interface; extended `SignPdfParams` |
+| `components/pdf-sign/pdf-viewer-wrapper.tsx` | `onReady` prop forwarded to `PDFViewer` |
+
+---
+
+## Capability: pdf-coordinate-translation (Original Spec)
 
 ### Purpose
 
