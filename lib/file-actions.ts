@@ -339,6 +339,24 @@ export const CONVERSION_OPTIONS: Record<FileCategory, ConversionOption[]> = {
       extension: "mov",
       description: "Apple QuickTime",
     },
+    {
+      id: "flv",
+      label: "FLV",
+      extension: "flv",
+      description: "Flash Video",
+    },
+    {
+      id: "mpeg",
+      label: "MPEG",
+      extension: "mpeg",
+      description: "MPEG Video",
+    },
+    {
+      id: "m4v",
+      label: "M4V",
+      extension: "m4v",
+      description: "Apple MP4",
+    },
   ],
   audio: [
     {

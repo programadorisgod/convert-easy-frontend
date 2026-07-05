@@ -23,6 +23,7 @@ import { createFilePreviewUrl } from "@/lib/file-store";
 import { getConversionOptions } from "@/lib/file-actions";
 import type { ConversionConfig, ConversionOption } from "@/lib/conversion-config";
 import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
+import { VideoOptions, type VideoParams } from "@/components/video/video-options";
 import type { FileCategory } from "@/types/file";
 import { executeAction, type ActionResult, cancelAction } from "./action-executor";
 import { sileo } from "sileo";
@@ -73,6 +74,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<string>("");
   const [audioParams, setAudioParams] = useState<AudioParams>({});
+  const [videoParams, setVideoParams] = useState<VideoParams>({});
   const [showFormatSelector, setShowFormatSelector] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -212,6 +214,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
           setProgress(newProgress);
         },
         audioParams: file.category === "audio" ? audioParams : undefined,
+        videoParams: file.category === "video" ? videoParams : undefined,
       });
 
       setResult(actionResult);
@@ -394,6 +397,12 @@ export function ConversionPage({ config }: ConversionPageProps) {
       {file?.category === "audio" && (
         <div className="mb-6 w-full max-w-xs">
           <AudioOptions value={audioParams} onChange={setAudioParams} />
+        </div>
+      )}
+
+      {file?.category === "video" && (
+        <div className="mb-6 w-full max-w-xs">
+          <VideoOptions value={videoParams} onChange={setVideoParams} />
         </div>
       )}
 

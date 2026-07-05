@@ -5,6 +5,7 @@ import {
   processImageFile,
   processPdfFile,
   processAudioFile,
+  processVideoFile,
   createUploadedJob,
   queuePdfMergeFromJobs,
   pollJobStatus,
@@ -25,6 +26,18 @@ export interface AudioParams {
   normalize_volume?: boolean
 }
 
+export interface VideoParams {
+  crf?: number
+  resolution?: string
+  fps?: number
+  trim_start?: string
+  trim_duration?: number
+  extract_audio?: boolean
+  audio_output_format?: string
+  audio_bitrate?: string
+  remove_audio?: boolean
+}
+
 export interface ActionResult {
   blob: Blob;
   filename: string;
@@ -37,6 +50,7 @@ export interface ActionExecutorOptions {
   onProgress?: (stage: string, progress: number) => void;
   onCancel?: () => void;
   audioParams?: AudioParams;
+  videoParams?: VideoParams;
 }
 
 export async function executeAction({
@@ -44,6 +58,7 @@ export async function executeAction({
   config,
   onProgress,
   audioParams,
+  videoParams,
 }: ActionExecutorOptions): Promise<ActionResult> {
   const inputFormat = file.name.split(".").pop()?.toLowerCase() || "";
   const fileNameBase = file.name.split(".").slice(0, -1).join(".") || file.name;
@@ -59,6 +74,7 @@ export async function executeAction({
       config: config as ConversionConfig,
       onProgress,
       audioParams,
+      videoParams,
     });
   }
 
@@ -69,6 +85,7 @@ export async function executeAction({
     config: config as ToolConfig,
     onProgress,
     audioParams,
+    videoParams,
   });
 }
 
@@ -79,6 +96,7 @@ interface ExecuteConversionOptions {
   config: ConversionConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
   audioParams?: AudioParams;
+  videoParams?: VideoParams;
 }
 
 async function executeConversion({
@@ -88,6 +106,7 @@ async function executeConversion({
   config,
   onProgress,
   audioParams,
+  videoParams,
 }: ExecuteConversionOptions): Promise<ActionResult> {
   const outputFormat = config.targetFormat;
 
@@ -97,6 +116,55 @@ async function executeConversion({
       inputFormat,
       outputFormat,
       audioParams as Record<string, unknown> | undefined,
+      (stage, progress) => onProgress?.(stage, progress)
+    );
+
+    const finalStatus = await pollJobStatus(jobId, (status) => {
+      if (status.status === "failed") {
+        throw new Error(status.error_message || "La conversión falló");
+      }
+    });
+
+    if (finalStatus.status !== "completed") {
+      throw new Error(finalStatus.error_message || "La conversión no se completó");
+    }
+
+    const blob = await downloadResult(jobId, outputFormat);
+    const filename = `${fileNameBase}.${outputFormat}`;
+
+    return { blob, filename, jobId };
+  }
+
+  if (config.category === "video") {
+    if (outputFormat === inputFormat) {
+      sileo.error({
+        title: "Formato inválido",
+        description: "El formato de salida debe ser diferente al de entrada.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 5000,
+      });
+      throw new Error("El formato de salida debe ser diferente al de entrada");
+    }
+
+    const videoParamsRecord = videoParams as Record<string, unknown> | undefined;
+
+    if (videoParams?.extract_audio && videoParams?.remove_audio) {
+      sileo.error({
+        title: "Configuración inválida",
+        description: "No se puede extraer y eliminar el audio al mismo tiempo.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 5000,
+      });
+      throw new Error("No se puede extraer y eliminar el audio al mismo tiempo");
+    }
+
+    const jobId = await processVideoFile(
+      file,
+      inputFormat,
+      outputFormat,
+      videoParamsRecord,
       (stage, progress) => onProgress?.(stage, progress)
     );
 
@@ -155,6 +223,7 @@ interface ExecuteToolOptions {
   config: ToolConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
   audioParams?: AudioParams;
+  videoParams?: VideoParams;
 }
 
 async function executeTool({
@@ -164,6 +233,7 @@ async function executeTool({
   config,
   onProgress,
   audioParams,
+  videoParams,
 }: ExecuteToolOptions): Promise<ActionResult> {
   switch (config.type) {
     case "compress":
@@ -200,6 +270,7 @@ async function executeTool({
         fileNameBase,
         config,
         onProgress,
+        videoParams,
       });
 
     case "trim":
@@ -210,6 +281,7 @@ async function executeTool({
         config,
         onProgress,
         audioParams,
+        videoParams,
       });
 
     case "normalize":
@@ -368,24 +440,28 @@ interface ExecuteAudioExtractOptions {
   fileNameBase: string;
   config: ToolConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
+  videoParams?: VideoParams;
 }
 
-// ponytail: video→audio needs a dedicated video endpoint; stays on PDF route for now
 async function executeAudioExtract({
   file,
   inputFormat,
   fileNameBase,
   config,
   onProgress,
+  videoParams,
 }: ExecuteAudioExtractOptions): Promise<ActionResult> {
   const outputFormat = config.outputFormat || "mp3";
 
-  const jobId = await processPdfFile(
+  const jobId = await processVideoFile(
     file,
     inputFormat,
-    "extract-audio",
-    { output_format: outputFormat },
     outputFormat,
+    {
+      extract_audio: true,
+      audio_output_format: videoParams?.audio_output_format || "mp3",
+      audio_bitrate: videoParams?.audio_bitrate || "192k",
+    },
     (stage, progress) => onProgress?.(stage, progress)
   );
 
@@ -412,6 +488,7 @@ interface ExecuteTrimOptions {
   config: ToolConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
   audioParams?: AudioParams;
+  videoParams?: VideoParams;
 }
 
 async function executeTrim({
@@ -421,6 +498,7 @@ async function executeTrim({
   config,
   onProgress,
   audioParams,
+  videoParams,
 }: ExecuteTrimOptions): Promise<ActionResult> {
   const outputFormat = config.outputFormat || "mp3";
 
@@ -433,6 +511,35 @@ async function executeTrim({
         ...(audioParams as Record<string, unknown>),
         trim_start: audioParams?.trim_start || "00:00:00",
         trim_duration: audioParams?.trim_duration || 30,
+      },
+      (stage, progress) => onProgress?.(stage, progress)
+    );
+
+    const finalStatus = await pollJobStatus(jobId, (status) => {
+      if (status.status === "failed") {
+        throw new Error(status.error_message || "El trim falló");
+      }
+    });
+
+    if (finalStatus.status !== "completed") {
+      throw new Error(finalStatus.error_message || "El trim no se completó");
+    }
+
+    const blob = await downloadResult(jobId, outputFormat);
+    const filename = `${fileNameBase}_trimmed.${outputFormat}`;
+
+    return { blob, filename, jobId };
+  }
+
+  if (config.category === "video") {
+    const jobId = await processVideoFile(
+      file,
+      inputFormat,
+      outputFormat,
+      {
+        ...(videoParams as Record<string, unknown>),
+        trim_start: videoParams?.trim_start || "00:00:00",
+        trim_duration: videoParams?.trim_duration || 30,
       },
       (stage, progress) => onProgress?.(stage, progress)
     );

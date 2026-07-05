@@ -31,9 +31,11 @@ import {
   convertXmlToJson,
   convertXmlToYaml,
   convertXmlToHtml,
+  processVideoFile,
 } from "@/lib/api-service";
 import type { JobStatus, CompressImageRequest } from "@/types/api";
 import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
+import { VideoOptions, type VideoParams } from "@/components/video/video-options";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -99,6 +101,7 @@ export function ActionSidebar({
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<string>("");
   const [audioParams, setAudioParams] = useState<AudioParams>({});
+  const [videoParams, setVideoParams] = useState<VideoParams>({});
   const [showCropDialog, setShowCropDialog] = useState(false);
 
   // Compress dialog state
@@ -838,16 +841,28 @@ export function ActionSidebar({
       setConversionStatus("processing");
 
       try {
-        const jobId = await convertFile(
-          file,
-          inputFormat,
-          [selectedFormat],
-          () => {}, // No progress callback for small files
-          {
-            useDocumentEndpoint,
-            preferredDocumentEngine: "auto",
-          },
-        );
+        let jobId: string;
+
+        if (category === "video") {
+          const outputFormatMatch = selectedFormat; // Already the target format
+          jobId = await processVideoFile(
+            file,
+            inputFormat,
+            outputFormatMatch,
+            videoParams as Record<string, unknown> | undefined,
+          );
+        } else {
+          jobId = await convertFile(
+            file,
+            inputFormat,
+            [selectedFormat],
+            () => {},
+            {
+              useDocumentEndpoint,
+              preferredDocumentEngine: "auto",
+            },
+          );
+        }
 
         setCurrentJobId(jobId);
 
@@ -1785,6 +1800,12 @@ export function ActionSidebar({
           {category === "audio" && (
             <div className="mt-4">
               <AudioOptions value={audioParams} onChange={setAudioParams} />
+            </div>
+          )}
+
+          {category === "video" && (
+            <div className="mt-4">
+              <VideoOptions value={videoParams} onChange={setVideoParams} />
             </div>
           )}
 

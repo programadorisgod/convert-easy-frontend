@@ -20,6 +20,8 @@ import type {
   WatermarkImageRequest,
   ProcessAudioRequest,
   ProcessAudioResponse,
+  ProcessVideoRequest,
+  ProcessVideoResponse,
   ProcessResponse,
   PdfProcessResponse,
 } from "@/types/api"
@@ -718,6 +720,61 @@ export async function processAudioFile(
   }
 
   const response = await processAudio(request)
+  onProgress?.("processing", 0)
+
+  return response.job_id
+}
+
+// ============================================================================
+// VIDEO PROCESSING OPERATIONS
+// ============================================================================
+
+export async function processVideo(
+  request: ProcessVideoRequest
+): Promise<ProcessVideoResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/video`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al procesar el video")
+  }
+
+  return response.json()
+}
+
+export async function processVideoFile(
+  file: File,
+  inputFormat: string,
+  outputFormat: string,
+  params?: Record<string, unknown>,
+  onProgress?: (stage: "uploading" | "processing", progress: number) => void
+): Promise<string> {
+  const jobResponse = await createJob({
+    input_format: inputFormat,
+    output_formats: [outputFormat],
+    original_size: file.size,
+    total_chunks: 1,
+  })
+
+  await uploadFile(file, jobResponse.job_id, (progress) => {
+    onProgress?.("uploading", progress)
+  })
+
+  const request: ProcessVideoRequest = {
+    job_id: jobResponse.job_id,
+    output_format: outputFormat,
+    ...(params as Partial<ProcessVideoRequest>),
+  }
+
+  const response = await processVideo(request)
   onProgress?.("processing", 0)
 
   return response.job_id

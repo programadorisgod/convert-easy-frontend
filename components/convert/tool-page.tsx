@@ -23,6 +23,7 @@ import type { ToolConfig } from "@/lib/conversion-config";
 import type { FileCategory } from "@/types/file";
 import { executeAction, type ActionResult, cancelAction } from "../convert/action-executor";
 import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
+import { VideoOptions, type VideoParams } from "@/components/video/video-options";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ export function ToolPage({ config }: ToolPageProps) {
   const [invalidFile, setInvalidFile] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [audioParams, setAudioParams] = useState<AudioParams>({});
+  const [videoParams, setVideoParams] = useState<VideoParams>({});
   const [trimStart, setTrimStart] = useState("00:00:00");
   const [trimDuration, setTrimDuration] = useState(30);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -180,6 +182,7 @@ export function ToolPage({ config }: ToolPageProps) {
     if (!file) return;
 
     const isAudioTrim = config.type === "trim" && file.category === "audio";
+    const isVideoTrim = config.type === "trim" && file.category === "video";
     const isAudioNormalize = config.type === "normalize" && file.category === "audio";
 
     if (isAudioTrim && !TRIM_START_RE.test(trimStart)) {
@@ -219,6 +222,7 @@ export function ToolPage({ config }: ToolPageProps) {
           setProgress(newProgress);
         },
         audioParams: mergedAudioParams,
+        videoParams: isVideoTrim ? videoParams : undefined,
       });
 
       setResult(actionResult);
@@ -397,6 +401,32 @@ export function ToolPage({ config }: ToolPageProps) {
             />
           </div>
           <AudioOptions value={audioParams} onChange={setAudioParams} />
+        </div>
+      )}
+
+      {config.type === "trim" && file?.category === "video" && (
+        <div className="mb-6 flex w-full max-w-xs flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="trim-start-video">Inicio (HH:MM:SS)</Label>
+            <Input
+              id="trim-start-video"
+              value={trimStart}
+              onChange={(e) => setTrimStart(e.target.value)}
+              placeholder="00:00:00"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="trim-duration-video">Duración (segundos)</Label>
+            <Input
+              id="trim-duration-video"
+              type="number"
+              min={1}
+              value={trimDuration}
+              onChange={(e) => setTrimDuration(Number(e.target.value))}
+              placeholder="30"
+            />
+          </div>
+          <VideoOptions value={videoParams} onChange={setVideoParams} />
         </div>
       )}
 

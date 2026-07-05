@@ -198,3 +198,41 @@ export interface ProcessAudioResponse {
   message: string
   audio_config?: AudioConfig
 }
+
+// ============================================================================
+// VIDEO PROCESSING TYPES
+// ============================================================================
+
+export interface VideoConfig {
+  output_format: string
+  crf?: number
+  resolution?: string
+  fps?: number
+  trim_start?: string
+  trim_duration?: number
+  extract_audio?: boolean
+  audio_output_format?: string
+  audio_bitrate?: string
+  remove_audio?: boolean
+}
+
+export interface ProcessVideoRequest {
+  job_id: string
+  output_format: string
+  crf?: number
+  resolution?: string
+  fps?: number
+  trim_start?: string
+  trim_duration?: number
+  extract_audio?: boolean
+  audio_output_format?: string
+  audio_bitrate?: string
+  remove_audio?: boolean
+}
+
+export interface ProcessVideoResponse {
+  job_id: string
+  status: JobStatus
+  message: string
+  video_config?: VideoConfig
+}
