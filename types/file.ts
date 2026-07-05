@@ -38,6 +38,7 @@ export interface FileAction {
   icon: LucideIcon
   category: FileCategory[]
   inputFormats?: string[]
+  comingSoon?: boolean
 }
 
 export interface ConversionOption {

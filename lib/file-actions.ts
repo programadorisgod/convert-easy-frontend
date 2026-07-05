@@ -48,7 +48,7 @@ export const FILE_ACTIONS: FileAction[] = [
     label: "Compress",
     description: "Reduce file size",
     icon: Archive,
-    category: ["document", "image", "video"],
+    category: ["document", "image"],
   },
   {
     id: "pdf-merge",
@@ -164,7 +164,7 @@ export const FILE_ACTIONS: FileAction[] = [
     label: "Watermark",
     description: "Add watermark",
     icon: Stamp,
-    category: ["image", "video"],
+    category: ["image"],
   },
   {
     id: "blur-face",
@@ -188,6 +188,22 @@ export const FILE_ACTIONS: FileAction[] = [
     description: "Cut video segments",
     icon: Scissors,
     category: ["video", "audio"],
+  },
+  {
+    id: "watermark",
+    label: "Watermark",
+    description: "Add watermark to video",
+    icon: Stamp,
+    category: ["video"],
+    comingSoon: true,
+  },
+  {
+    id: "compress",
+    label: "Compress",
+    description: "Reduce video file size",
+    icon: Archive,
+    category: ["video"],
+    comingSoon: true,
   },
 
   // Audio actions

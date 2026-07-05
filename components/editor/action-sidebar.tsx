@@ -1675,18 +1675,25 @@ export function ActionSidebar({
               <button
                 key={action.id}
                 onClick={() => handleActionClick(action.id)}
-                disabled={isConverting}
+                disabled={isConverting || action.comingSoon}
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
                   selectedAction === action.id
                     ? "bg-primary text-primary-foreground"
                     : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                  isConverting && "opacity-50 cursor-not-allowed",
+                  (isConverting || action.comingSoon) && "opacity-50 cursor-not-allowed",
                 )}
               >
                 <action.icon className="h-4 w-4 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium">{action.label}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{action.label}</span>
+                    {action.comingSoon && (
+                      <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary leading-none">
+                        Próximamente
+                      </span>
+                    )}
+                  </div>
                   <div
                     className={cn(
                       "text-xs truncate",
