@@ -22,8 +22,11 @@ import { createFilePreviewUrl } from "@/lib/file-store";
 import type { ToolConfig } from "@/lib/conversion-config";
 import type { FileCategory } from "@/types/file";
 import { executeAction, type ActionResult, cancelAction } from "../convert/action-executor";
+import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PdfSignPage } from "@/components/pdf-sign/pdf-sign-page";
 
 interface FilePreview {
@@ -64,6 +67,9 @@ export function ToolPage({ config }: ToolPageProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [invalidFile, setInvalidFile] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [audioParams, setAudioParams] = useState<AudioParams>({});
+  const [trimStart, setTrimStart] = useState("00:00:00");
+  const [trimDuration, setTrimDuration] = useState(30);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const acceptedExtensions = config.sourceExtensions?.join(",") || "*";
@@ -168,13 +174,41 @@ export function ToolPage({ config }: ToolPageProps) {
     e.target.value = "";
   };
 
+  const TRIM_START_RE = /^\d{1,2}:\d{2}:\d{2}$/;
+
   const handleExecute = async () => {
     if (!file) return;
+
+    const isAudioTrim = config.type === "trim" && file.category === "audio";
+    const isAudioNormalize = config.type === "normalize" && file.category === "audio";
+
+    if (isAudioTrim && !TRIM_START_RE.test(trimStart)) {
+      setError("Formato inválido. Usá HH:MM:SS (ej: 00:01:30)");
+      sileo.error({
+        title: "Formato inválido",
+        description: "El inicio debe ser HH:MM:SS (ej: 00:01:30)",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6000,
+      });
+      return;
+    }
 
     setStatus("processing");
     setStage("uploading");
     setProgress(0);
     setError(null);
+
+    const mergedAudioParams: AudioParams | undefined =
+      isAudioTrim || isAudioNormalize
+        ? {
+            ...audioParams,
+            ...(isAudioTrim && {
+              trim_start: trimStart,
+              trim_duration: trimDuration,
+            }),
+          }
+        : undefined;
 
     try {
       const actionResult = await executeAction({
@@ -184,6 +218,7 @@ export function ToolPage({ config }: ToolPageProps) {
           setStage(newStage);
           setProgress(newProgress);
         },
+        audioParams: mergedAudioParams,
       });
 
       setResult(actionResult);
@@ -335,9 +370,41 @@ export function ToolPage({ config }: ToolPageProps) {
         <CategoryIcon className="h-10 w-10 text-primary" />
       </div>
       <h3 className="mb-2 text-xl font-semibold">{file?.name}</h3>
-      <p className="mb-8 text-sm text-muted-foreground">
+      <p className="mb-4 text-sm text-muted-foreground">
         {file?.extension.toUpperCase()} - {formatFileSize(file?.size || 0)}
       </p>
+
+      {config.type === "trim" && file?.category === "audio" && (
+        <div className="mb-6 flex w-full max-w-xs flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="trim-start">Inicio (HH:MM:SS)</Label>
+            <Input
+              id="trim-start"
+              value={trimStart}
+              onChange={(e) => setTrimStart(e.target.value)}
+              placeholder="00:00:00"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="trim-duration">Duración (segundos)</Label>
+            <Input
+              id="trim-duration"
+              type="number"
+              min={1}
+              value={trimDuration}
+              onChange={(e) => setTrimDuration(Number(e.target.value))}
+              placeholder="30"
+            />
+          </div>
+          <AudioOptions value={audioParams} onChange={setAudioParams} />
+        </div>
+      )}
+
+      {config.type === "normalize" && file?.category === "audio" && (
+        <div className="mb-6 w-full max-w-xs">
+          <AudioOptions value={audioParams} onChange={setAudioParams} />
+        </div>
+      )}
 
       <div className="flex gap-3">
         <Button

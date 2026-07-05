@@ -22,6 +22,7 @@ import { formatFileSize } from "@/lib/file-utils";
 import { createFilePreviewUrl } from "@/lib/file-store";
 import { getConversionOptions } from "@/lib/file-actions";
 import type { ConversionConfig, ConversionOption } from "@/lib/conversion-config";
+import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
 import type { FileCategory } from "@/types/file";
 import { executeAction, type ActionResult, cancelAction } from "./action-executor";
 import { sileo } from "sileo";
@@ -71,6 +72,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
   const [invalidFile, setInvalidFile] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [selectedFormat, setSelectedFormat] = useState<string>("");
+  const [audioParams, setAudioParams] = useState<AudioParams>({});
   const [showFormatSelector, setShowFormatSelector] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -209,6 +211,7 @@ export function ConversionPage({ config }: ConversionPageProps) {
           setStage(newStage);
           setProgress(newProgress);
         },
+        audioParams: file.category === "audio" ? audioParams : undefined,
       });
 
       setResult(actionResult);
@@ -385,6 +388,12 @@ export function ConversionPage({ config }: ConversionPageProps) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {file?.category === "audio" && (
+        <div className="mb-6 w-full max-w-xs">
+          <AudioOptions value={audioParams} onChange={setAudioParams} />
         </div>
       )}
 

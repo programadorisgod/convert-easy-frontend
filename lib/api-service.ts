@@ -18,6 +18,8 @@ import type {
   ProcessDocumentRequest,
   ProcessDocumentResponse,
   WatermarkImageRequest,
+  ProcessAudioRequest,
+  ProcessAudioResponse,
   ProcessResponse,
   PdfProcessResponse,
 } from "@/types/api"
@@ -657,6 +659,68 @@ export async function queuePdfMergeFromJobs(
 
   const payload = (await response.json()) as PdfProcessResponse
   return payload.job_id
+}
+
+// ============================================================================
+// AUDIO PROCESSING OPERATIONS
+// ============================================================================
+
+/**
+ * Process audio conversion/trim/normalize via dedicated audio endpoint.
+ */
+export async function processAudio(
+  request: ProcessAudioRequest
+): Promise<ProcessAudioResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/audio`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    }
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al procesar el audio")
+  }
+
+  return response.json()
+}
+
+/**
+ * Complete audio processing flow: createJob → uploadFile → processAudio
+ * Mirrors processImageFile() pattern.
+ */
+export async function processAudioFile(
+  file: File,
+  inputFormat: string,
+  outputFormat: string,
+  params?: Record<string, unknown>,
+  onProgress?: (stage: "uploading" | "processing", progress: number) => void
+): Promise<string> {
+  const jobResponse = await createJob({
+    input_format: inputFormat,
+    output_formats: [outputFormat],
+    original_size: file.size,
+    total_chunks: 1,
+  })
+
+  await uploadFile(file, jobResponse.job_id, (progress) => {
+    onProgress?.("uploading", progress)
+  })
+
+  const request: ProcessAudioRequest = {
+    job_id: jobResponse.job_id,
+    output_format: outputFormat,
+    ...(params as Partial<ProcessAudioRequest>),
+  }
+
+  const response = await processAudio(request)
+  onProgress?.("processing", 0)
+
+  return response.job_id
 }
 
 // ============================================================================

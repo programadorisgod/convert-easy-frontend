@@ -166,3 +166,35 @@ export interface ProcessDocumentResponse {
     preferred_engine: "auto" | "pandoc" | "libreoffice"
   }
 }
+
+// ============================================================================
+// AUDIO PROCESSING TYPES
+// ============================================================================
+
+export interface AudioConfig {
+  output_format: string
+  bitrate?: string
+  sample_rate?: number
+  channels?: number
+  trim_start?: string
+  trim_duration?: number
+  normalize_volume?: boolean
+}
+
+export interface ProcessAudioRequest {
+  job_id: string
+  output_format: string
+  bitrate?: string
+  sample_rate?: number
+  channels?: number
+  trim_start?: string
+  trim_duration?: number
+  normalize_volume?: boolean
+}
+
+export interface ProcessAudioResponse {
+  job_id: string
+  status: JobStatus
+  message: string
+  audio_config?: AudioConfig
+}

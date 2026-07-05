@@ -1,0 +1,61 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: Next.js 16.1.6 (App Router), React 19.2.4, TypeScript 5.7.3 (strict), Tailwind CSS v4 (@tailwindcss/postcss), shadcn/ui (new-york, RSC, lucide icons)
+  Architecture: App Router layout structure, in-memory file store (Map), data-driven actions by file category, chunked upload for >10MB files, backend API integration (FastAPI on /api/v1), theme system (light/dark/blue) via next-themes
+  Testing: None installed — Vitest planned for unit, Playwright for E2E (both documented as future work)
+  Style: @/ path alias, PascalCase components, kebab-case files, shadcn/ui composition patterns, custom hooks in hooks/
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Always reference existing lib/ and components/ conventions
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Follow existing data-driven action pattern from lib/file-actions.ts
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns (App Router, RSC, shadcn/ui)
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "pnpm build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: false
+  reason: No test runner is installed in the project. No Vitest, Jest, Playwright, or Cypress found in devDependencies. No test configuration files or test files exist. Testing is planned but not yet set up.
+  runner: none
+  layers:
+    unit:
+      available: false
+      tool: ""
+    integration:
+      available: false
+      tool: ""
+    e2e:
+      available: false
+      tool: ""
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter:
+      available: true
+      command: "pnpm lint"
+    type_checker:
+      available: true
+      command: "tsc --noEmit"
+    formatter:
+      available: false
+      command: ""

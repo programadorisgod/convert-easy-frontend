@@ -1,0 +1,26 @@
+# openspec/changes/audio-conversion-integration/state.yaml
+change: audio-conversion-integration
+phase: archive
+artifact_store: hybrid
+artifacts:
+  config: true
+  exploration: true
+  proposal: true
+  specs: true
+  design: true
+  tasks: true
+  apply_progress: true
+  verify_report: true
+  archive_report: true
+tasks_progress:
+  completed:
+    - Initialize SDD context
+    - Explore audio conversion requirements
+    - Propose change scope
+    - Write specs
+    - Design technical approach
+    - Plan and implement tasks
+    - Verify implementation
+    - Archive change
+  pending: []
+last_updated: 2026-07-05

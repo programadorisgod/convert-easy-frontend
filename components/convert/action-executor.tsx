@@ -4,6 +4,7 @@ import {
   convertFile,
   processImageFile,
   processPdfFile,
+  processAudioFile,
   createUploadedJob,
   queuePdfMergeFromJobs,
   pollJobStatus,
@@ -14,6 +15,15 @@ import type { JobStatusResponse } from "@/types/api";
 import type { ConversionConfig, ToolConfig, ActionType } from "@/lib/conversion-config";
 import { sileo } from "sileo";
 import { AlertCircle, Sparkles, Loader2, X } from "lucide-react";
+
+export interface AudioParams {
+  bitrate?: string
+  sample_rate?: number
+  channels?: number
+  trim_start?: string
+  trim_duration?: number
+  normalize_volume?: boolean
+}
 
 export interface ActionResult {
   blob: Blob;
@@ -26,12 +36,14 @@ export interface ActionExecutorOptions {
   config: ConversionConfig | ToolConfig;
   onProgress?: (stage: string, progress: number) => void;
   onCancel?: () => void;
+  audioParams?: AudioParams;
 }
 
 export async function executeAction({
   file,
   config,
   onProgress,
+  audioParams,
 }: ActionExecutorOptions): Promise<ActionResult> {
   const inputFormat = file.name.split(".").pop()?.toLowerCase() || "";
   const fileNameBase = file.name.split(".").slice(0, -1).join(".") || file.name;
@@ -46,6 +58,7 @@ export async function executeAction({
       fileNameBase,
       config: config as ConversionConfig,
       onProgress,
+      audioParams,
     });
   }
 
@@ -55,6 +68,7 @@ export async function executeAction({
     fileNameBase,
     config: config as ToolConfig,
     onProgress,
+    audioParams,
   });
 }
 
@@ -64,6 +78,7 @@ interface ExecuteConversionOptions {
   fileNameBase: string;
   config: ConversionConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
+  audioParams?: AudioParams;
 }
 
 async function executeConversion({
@@ -72,8 +87,35 @@ async function executeConversion({
   fileNameBase,
   config,
   onProgress,
+  audioParams,
 }: ExecuteConversionOptions): Promise<ActionResult> {
   const outputFormat = config.targetFormat;
+
+  if (config.category === "audio") {
+    const jobId = await processAudioFile(
+      file,
+      inputFormat,
+      outputFormat,
+      audioParams as Record<string, unknown> | undefined,
+      (stage, progress) => onProgress?.(stage, progress)
+    );
+
+    const finalStatus = await pollJobStatus(jobId, (status) => {
+      if (status.status === "failed") {
+        throw new Error(status.error_message || "La conversión falló");
+      }
+    });
+
+    if (finalStatus.status !== "completed") {
+      throw new Error(finalStatus.error_message || "La conversión no se completó");
+    }
+
+    const blob = await downloadResult(jobId, outputFormat);
+    const filename = `${fileNameBase}.${outputFormat}`;
+
+    return { blob, filename, jobId };
+  }
+
   const useDocumentEndpoint = config.category === "document";
 
   const jobId = await convertFile(
@@ -112,6 +154,7 @@ interface ExecuteToolOptions {
   fileNameBase: string;
   config: ToolConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
+  audioParams?: AudioParams;
 }
 
 async function executeTool({
@@ -120,6 +163,7 @@ async function executeTool({
   fileNameBase,
   config,
   onProgress,
+  audioParams,
 }: ExecuteToolOptions): Promise<ActionResult> {
   switch (config.type) {
     case "compress":
@@ -165,6 +209,7 @@ async function executeTool({
         fileNameBase,
         config,
         onProgress,
+        audioParams,
       });
 
     case "normalize":
@@ -174,6 +219,7 @@ async function executeTool({
         fileNameBase,
         config,
         onProgress,
+        audioParams,
       });
 
     case "sign":
@@ -324,6 +370,7 @@ interface ExecuteAudioExtractOptions {
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
 }
 
+// ponytail: video→audio needs a dedicated video endpoint; stays on PDF route for now
 async function executeAudioExtract({
   file,
   inputFormat,
@@ -364,6 +411,7 @@ interface ExecuteTrimOptions {
   fileNameBase: string;
   config: ToolConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
+  audioParams?: AudioParams;
 }
 
 async function executeTrim({
@@ -372,8 +420,38 @@ async function executeTrim({
   fileNameBase,
   config,
   onProgress,
+  audioParams,
 }: ExecuteTrimOptions): Promise<ActionResult> {
   const outputFormat = config.outputFormat || "mp3";
+
+  if (config.category === "audio") {
+    const jobId = await processAudioFile(
+      file,
+      inputFormat,
+      outputFormat,
+      {
+        ...(audioParams as Record<string, unknown>),
+        trim_start: audioParams?.trim_start || "00:00:00",
+        trim_duration: audioParams?.trim_duration || 30,
+      },
+      (stage, progress) => onProgress?.(stage, progress)
+    );
+
+    const finalStatus = await pollJobStatus(jobId, (status) => {
+      if (status.status === "failed") {
+        throw new Error(status.error_message || "El trim falló");
+      }
+    });
+
+    if (finalStatus.status !== "completed") {
+      throw new Error(finalStatus.error_message || "El trim no se completó");
+    }
+
+    const blob = await downloadResult(jobId, outputFormat);
+    const filename = `${fileNameBase}_trimmed.${outputFormat}`;
+
+    return { blob, filename, jobId };
+  }
 
   const jobId = await processPdfFile(
     file,
@@ -406,6 +484,7 @@ interface ExecuteNormalizeOptions {
   fileNameBase: string;
   config: ToolConfig;
   onProgress?: (stage: "uploading" | "processing", progress: number) => void;
+  audioParams?: AudioParams;
 }
 
 async function executeNormalize({
@@ -414,8 +493,34 @@ async function executeNormalize({
   fileNameBase,
   config,
   onProgress,
+  audioParams,
 }: ExecuteNormalizeOptions): Promise<ActionResult> {
   const outputFormat = config.outputFormat || "mp3";
+
+  if (config.category === "audio") {
+    const jobId = await processAudioFile(
+      file,
+      inputFormat,
+      outputFormat,
+      { ...(audioParams as Record<string, unknown>), normalize_volume: true },
+      (stage, progress) => onProgress?.(stage, progress)
+    );
+
+    const finalStatus = await pollJobStatus(jobId, (status) => {
+      if (status.status === "failed") {
+        throw new Error(status.error_message || "La normalización falló");
+      }
+    });
+
+    if (finalStatus.status !== "completed") {
+      throw new Error(finalStatus.error_message || "La normalización no se completó");
+    }
+
+    const blob = await downloadResult(jobId, outputFormat);
+    const filename = `${fileNameBase}_normalized.${outputFormat}`;
+
+    return { blob, filename, jobId };
+  }
 
   const jobId = await processPdfFile(
     file,

@@ -33,6 +33,7 @@ import {
   convertXmlToHtml,
 } from "@/lib/api-service";
 import type { JobStatus, CompressImageRequest } from "@/types/api";
+import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -97,6 +98,7 @@ export function ActionSidebar({
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<string>("");
+  const [audioParams, setAudioParams] = useState<AudioParams>({});
   const [showCropDialog, setShowCropDialog] = useState(false);
 
   // Compress dialog state
@@ -1772,6 +1774,12 @@ export function ActionSidebar({
               </div>
             ))}
           </RadioGroup>
+
+          {category === "audio" && (
+            <div className="mt-4">
+              <AudioOptions value={audioParams} onChange={setAudioParams} />
+            </div>
+          )}
 
           <div className="mt-6 flex justify-end gap-2">
             <Button
