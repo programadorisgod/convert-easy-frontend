@@ -96,16 +96,14 @@ Create `VideoOptions` with:
 - CRF slider (0-51, default 23)
 - Resolution presets select + custom text input
 - FPS select (24/25/30/50/60)
-- Extract audio toggle → conditional audio format + bitrate selects
 - Remove audio toggle
-- CRF/resolution/fps disabled when extract_audio checked
 - Resolution regex validation `/^-?\d+:-?\d+$/`
+
+Note: extract-audio is a separate action (not a convert toggle). See Task 7.
 
 ### Acceptance Criteria
 
 - [ ] All control groups render
-- [ ] extract_audio disables CRF/resolution/FPS
-- [ ] audio_output_format/bitrate appear when extract_audio checked
 - [ ] Resolution validates WIDTH:HEIGHT format
 - [ ] TypeScript compiles without errors
 
@@ -150,10 +148,13 @@ Create `VideoOptions` with:
 
 In the convert dialog section, when category === "video", render `<VideoOptions>` below the format selector. Wire params through.
 
+Also wire `extract-audio` in `handleActionClick` — call `handleExtractAudio` which does `processVideoFile` with `extract_audio: true` → poll → download `.mp3`.
+
 ### Acceptance Criteria
 
 - [ ] VideoOptions renders in convert dialog for video
 - [ ] Params passed to conversion flow
+- [ ] Extract Audio action in sidebar processes video instead of showing "available soon"
 - [ ] TypeScript compiles without errors
 
 ---

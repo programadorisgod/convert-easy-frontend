@@ -97,14 +97,8 @@ The system SHALL provide a reusable `VideoOptions` component with video quality 
 
 - GIVEN the user triggers video conversion
 - WHEN the options panel renders
-- THEN VideoOptions SHALL display CRF slider, resolution input, FPS select, trim fields (for trim), extract_audio toggle, remove_audio toggle
+- THEN VideoOptions SHALL display CRF slider, resolution input, FPS select, remove_audio toggle
 - AND controls SHALL pre-select default values
-
-#### Scenario: extract_audio conditional fields
-
-- GIVEN `extract_audio` is checked
-- THEN `audio_output_format` and `audio_bitrate` selectors SHALL appear
-- AND CRF/resolution/FPS controls SHALL be disabled (incompatible per spec)
 
 ### Requirement: Video Constants File
 

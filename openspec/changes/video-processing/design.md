@@ -48,7 +48,7 @@ processVideoFile(file, inputFormat, outputFormat, params)
 | `lib/video-constants.ts` | Create | `VIDEO_INPUT_FORMATS`, `VIDEO_OUTPUT_FORMATS`, `VIDEO_DEFAULTS`, `CRF_RANGE`, `RESOLUTION_PRESETS`, `FPS_OPTIONS`, `AUDIO_OUTPUT_FORMATS_SLIM`, `AUDIO_BITRATE_OPTIONS` |
 | `types/api.ts` | Modify | Add `VideoConfig`, `ProcessVideoRequest`, `ProcessVideoResponse` |
 | `lib/api-service.ts` | Modify | Add `processVideo()` POST, `processVideoFile()` composite flow |
-| `components/video/video-options.tsx` | Create | CRF slider, resolution input, FPS select, trim fields, extract_audio toggle, remove_audio toggle, conditional audio format/bitrate |
+| `components/video/video-options.tsx` | Create | CRF slider, resolution input, FPS select, remove_audio toggle |
 | `components/convert/action-executor.tsx` | Modify | Route video conversions + trim to `processVideoFile()`, fix `executeAudioExtract()` |
 | `components/editor/action-sidebar.tsx` | Modify | VideoOptions in convert dialog for video |
 | `components/convert/conversion-page.tsx` | Modify | VideoOptions when category === "video" |
@@ -120,7 +120,6 @@ export const AUDIO_BITRATE_OPTIONS = ["128k", "192k", "256k", "320k"] as const
 |---|---|---|
 | output_format ≠ input format | action-executor | Show error toast, block execution |
 | extract_audio + remove_audio | action-executor | Show error toast, block execution |
-| extract_audio + crf/resolution/fps | VideoOptions | Disable CRF/resolution/FPS when extract_audio checked |
 | trim_start format (HH:MM:SS) | tool-page (trim) | Regex `/^\d{1,2}:\d{2}:\d{2}$/` |
 | Resolution format (WIDTH:HEIGHT) | VideoOptions | Regex `/^-?\d+:-?\d+$/` |
 
@@ -135,5 +134,4 @@ export const AUDIO_BITRATE_OPTIONS = ["128k", "192k", "256k", "320k"] as const
 | Layer | What | How |
 |---|---|---|
 | Manual | processVideoFile() flow | createJob → upload → processVideo round trip |
-| Manual | extract_audio/remove_audio validation | Toggle both, verify rejection |
 | Manual | VideoOptions rendering | Check all three surfaces (editor, conversion-page, tool-page) |

@@ -532,6 +532,11 @@ export function ActionSidebar({
       return;
     }
 
+    if (actionId === "extract-audio") {
+      void handleExtractAudio();
+      return;
+    }
+
     if (actionId === "watermark") {
       setShowWatermarkDialog(true);
       return;
@@ -1214,6 +1219,95 @@ export function ActionSidebar({
           error instanceof Error
             ? error.message
             : "No se pudo remover el fondo",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6000,
+      });
+    }
+  };
+
+  const handleExtractAudio = async () => {
+    const file = getFile(fileId);
+    if (!file) {
+      sileo.error({
+        title: "Archivo no encontrado",
+        description: "No se pudo encontrar el archivo en memoria.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
+
+    if (onActionSelect) {
+      onActionSelect("extract-audio");
+    }
+
+    try {
+      sileo.info({
+        title: "Extrayendo audio",
+        description:
+          "Puedes seguir utilizando la app, te avisaremos cuando esté listo.",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 5000,
+      });
+
+      const jobId = await processVideoFile(file, inputFormat, "mp3", {
+        extract_audio: true,
+        audio_output_format: "mp3",
+        audio_bitrate: "192k",
+      });
+
+      addBgJob(jobId, "Extraer audio");
+
+      const finalStatus = await pollJobStatus(jobId, (status) => {
+        if (status.status === "failed") updateBgJob(jobId, "failed");
+      });
+
+      if (finalStatus.status === "completed") {
+        updateBgJob(jobId, "downloading");
+        const newFileName = `${fileName.split(".")[0]}.mp3`;
+
+        sileo.success({
+          title: "¡Audio extraído!",
+          description: "El archivo se descargará automáticamente.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(jobId, "mp3");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        removeBgJob(jobId);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "Error al extraer audio",
+          description:
+            finalStatus.error_message ||
+            "No se pudo extraer el audio del video.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+        removeBgJob(jobId);
+      }
+    } catch (error) {
+      console.error("Extract audio error:", error);
+      sileo.error({
+        title: "Error al extraer audio",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo extraer el audio",
         icon: <AlertCircle className="size-3.5" />,
         roundness: 16,
         duration: 6000,

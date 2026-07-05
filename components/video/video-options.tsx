@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { VIDEO_DEFAULTS, CRF_RANGE, RESOLUTION_PRESETS, FPS_OPTIONS, AUDIO_OUTPUT_FORMATS_SLIM, AUDIO_BITRATE_OPTIONS } from "@/lib/video-constants";
+import { VIDEO_DEFAULTS, CRF_RANGE, RESOLUTION_PRESETS, FPS_OPTIONS } from "@/lib/video-constants";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -41,12 +41,12 @@ export function VideoOptions({ value, onChange }: VideoOptionsProps) {
     [value, onChange],
   );
 
-  const isExtractAudio = value.extract_audio ?? false;
-  const resolutionInPresets = RESOLUTION_PRESETS.some(
-    (p) => p.value === value.resolution,
-  );
   const [resolutionMode, setResolutionMode] = useState<"preset" | "custom">(
-    value.resolution && !resolutionInPresets ? "custom" : "preset",
+    value.resolution
+      ? RESOLUTION_PRESETS.some((p) => p.value === value.resolution)
+        ? "preset"
+        : "custom"
+      : "preset",
   );
 
   return (
@@ -62,7 +62,6 @@ export function VideoOptions({ value, onChange }: VideoOptionsProps) {
           step={CRF_RANGE.step}
           value={[value.crf ?? VIDEO_DEFAULTS.crf]}
           onValueChange={([v]) => update({ crf: v })}
-          disabled={isExtractAudio}
         />
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>0 (lossless)</span>
@@ -84,7 +83,6 @@ export function VideoOptions({ value, onChange }: VideoOptionsProps) {
                 update({ resolution: v });
               }
             }}
-            disabled={isExtractAudio}
           >
             <SelectTrigger className="flex-1">
               <SelectValue placeholder="Preset" />
@@ -104,7 +102,6 @@ export function VideoOptions({ value, onChange }: VideoOptionsProps) {
             placeholder="WIDTH:HEIGHT (ej: 1920:1080)"
             value={value.resolution ?? ""}
             onChange={(e) => update({ resolution: e.target.value })}
-            disabled={isExtractAudio}
           />
         )}
         {value.resolution && !validateResolution(value.resolution) && (
@@ -119,7 +116,6 @@ export function VideoOptions({ value, onChange }: VideoOptionsProps) {
         <Select
           value={value.fps?.toString() ?? ""}
           onValueChange={(v) => update({ fps: v ? Number(v) : undefined })}
-          disabled={isExtractAudio}
         >
           <SelectTrigger id="fps-select" className="w-full">
             <SelectValue
@@ -139,63 +135,6 @@ export function VideoOptions({ value, onChange }: VideoOptionsProps) {
           </SelectContent>
         </Select>
       </div>
-
-      <div className="flex items-center gap-3">
-        <Switch
-          id="extract-audio"
-          checked={isExtractAudio}
-          onCheckedChange={(checked) =>
-            update({
-              extract_audio: checked,
-              ...(checked
-                ? { audio_output_format: "mp3", audio_bitrate: "192k" }
-                : { audio_output_format: undefined, audio_bitrate: undefined }),
-            })
-          }
-        />
-        <Label htmlFor="extract-audio">Extraer audio</Label>
-      </div>
-
-      {isExtractAudio && (
-        <div className="ml-6 flex flex-col gap-3">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="audio-format">Formato de audio</Label>
-            <Select
-              value={value.audio_output_format ?? "mp3"}
-              onValueChange={(v) => update({ audio_output_format: v })}
-            >
-              <SelectTrigger id="audio-format" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AUDIO_OUTPUT_FORMATS_SLIM.map((f) => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="audio-bitrate">Bitrate de audio</Label>
-            <Select
-              value={value.audio_bitrate ?? "192k"}
-              onValueChange={(v) => update({ audio_bitrate: v })}
-            >
-              <SelectTrigger id="audio-bitrate" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AUDIO_BITRATE_OPTIONS.map((b) => (
-                  <SelectItem key={b} value={b}>
-                    {b}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center gap-3">
         <Switch

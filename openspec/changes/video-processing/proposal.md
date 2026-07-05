@@ -12,7 +12,7 @@ Video files route to wrong or broken endpoints (PDF processing, generic convert,
 - `processVideo()` and `processVideoFile()` in api-service (mirror `processAudioFile` pattern)
 - Video routing in action-executor: `executeConversion()` + `executeTrim()` for video category call `processVideoFile()`
 - `extract-audio` from video → `processVideoFile()` with `extract_audio: true` (replaces current PDF route hack)
-- VideoOptions component: CRF slider, resolution text input, FPS select, trim fields, extract-audio toggle, remove-audio toggle
+- VideoOptions component: CRF slider, resolution text input, FPS select, remove-audio toggle
 - Wire VideoOptions into editor sidebar, conversion-page, and tool-page
 - Video constants file (formats, CRF defaults, resolution presets)
 - Update `CONVERSION_OPTIONS.video` in file-actions.ts (add missing formats)
@@ -35,7 +35,7 @@ Video files route to wrong or broken endpoints (PDF processing, generic convert,
 2. Add `processVideo()` POST to `/api/v1/process/video` and `processVideoFile()` composite flow (mirrors `processAudioFile`)
 3. Create `lib/video-constants.ts` with defaults and options
 4. Refactor action-executor: route video conversions + trim to `processVideoFile()`, fix `executeAudioExtract()` to use `processVideoFile` with `extract_audio: true`
-5. Build `VideoOptions` component (CRF slider, resolution input, FPS select, trim fields, extract_audio toggle, remove_audio toggle, audio output format/bitrate conditional)
+5. Build `VideoOptions` component (CRF slider, resolution input, FPS select, remove_audio toggle)
 6. Wire VideoOptions into editor convert dialog for video category
 7. Wire video option collection in conversion-page for video routes
 8. Wire VideoOptions + trim fields in tool-page for trim-video
@@ -58,7 +58,7 @@ Video files route to wrong or broken endpoints (PDF processing, generic convert,
 
 | Risk | Likelihood | Mitigation |
 |------|------------|------------|
-| extract_audio/remove_audio mutual exclusion | Low | Validation in VideoOptions + action-executor |
+| extract_audio/remove_audio mutual exclusion | Low | Validation in action-executor |
 | Video files >10MB hit non-chunked upload | Med | Deferred, document as follow-up |
 | Resolution regex parsing | Low | Basic `WIDTH:HEIGHT` validation |
 
@@ -73,4 +73,5 @@ Single PR revert. Old routing stays intact but inactive for video — revert by 
 - [ ] extract-audio sends `extract_audio: true` to video endpoint (not PDF)
 - [ ] CRF/resolution/FPS params reach the backend
 - [ ] VideoOptions renders in editor + conversion-page + tool-page
+- [ ] extract-audio is a separate action (not a convert toggle)
 - [ ] extract_audio and remove_audio cannot both be true (validation)
