@@ -124,12 +124,12 @@ export const NAV_CATEGORIES: NavCategory[] = [
         description: "Extract audio track from video",
         icon: Music,
       },
-      {
-        label: "Trim Video",
-        href: "/tools/trim-video",
-        description: "Cut and trim video segments",
-        icon: Scissors,
-      },
+      // {
+      //   label: "Trim Video",
+      //   href: "/tools/trim-video",
+      //   description: "Cut and trim video segments",
+      //   icon: Scissors,
+      // },
     ],
   },
   {
@@ -155,18 +155,18 @@ export const NAV_CATEGORIES: NavCategory[] = [
         description: "Convert audio to WAV format",
         icon: Music,
       },
-      {
-        label: "Trim Audio",
-        href: "/tools/trim-audio",
-        description: "Cut and trim audio segments",
-        icon: Scissors,
-      },
-      {
-        label: "Normalize Audio",
-        href: "/tools/normalize-audio",
-        description: "Normalize audio levels",
-        icon: Volume2,
-      },
+      // {
+      //   label: "Trim Audio",
+      //   href: "/tools/trim-audio",
+      //   description: "Cut and trim audio segments",
+      //   icon: Scissors,
+      // },
+      // {
+      //   label: "Normalize Audio",
+      //   href: "/tools/normalize-audio",
+      //   description: "Normalize audio levels",
+      //   icon: Volume2,
+      // },
     ],
   },
 ]
