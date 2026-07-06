@@ -246,6 +246,20 @@ export async function startConversion(
 }
 
 /**
+ * Sanitize error messages from the backend — strip internal paths and tracebacks.
+ * Never expose implementation details (file paths, Python errors) to the user.
+ */
+function sanitizeErrorMessage(message: string): string {
+  // Python traceback or internal path exposed
+  if (
+    /Traceback \(most recent call last\)|File ".*?", line \d+|src\/infrastructure|src\/domain|src\/application|\/app\/src\//.test(message)
+  ) {
+    return "Ocurrió un error interno al procesar el archivo."
+  }
+  return message
+}
+
+/**
  * Get job status
  */
 export async function getJobStatus(
@@ -262,7 +276,11 @@ export async function getJobStatus(
     await handleApiError(response, "Error al obtener el estado del trabajo")
   }
 
-  return response.json()
+  const data: JobStatusResponse = await response.json()
+  if (data.error_message) {
+    data.error_message = sanitizeErrorMessage(data.error_message)
+  }
+  return data
 }
 
 /**
