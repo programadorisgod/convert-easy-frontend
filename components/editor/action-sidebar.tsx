@@ -1866,23 +1866,16 @@ export function ActionSidebar({
           <RadioGroup
             value={selectedFormat}
             onValueChange={setSelectedFormat}
-            className="mt-4 grid gap-2"
+            className="mt-4 grid grid-cols-2 gap-2"
           >
             {conversionOptions.map((option: ConversionOption) => (
-              <div key={option.id} className="flex items-center space-x-3">
+              <div key={option.id} className="flex items-center gap-2">
                 <RadioGroupItem value={option.extension} id={option.id} />
                 <Label
                   htmlFor={option.id}
-                  className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                  className="flex flex-1 cursor-pointer items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent"
                 >
-                  <div>
-                    <div className="font-medium">{option.label}</div>
-                    {option.description && (
-                      <div className="text-xs text-muted-foreground">
-                        {option.description}
-                      </div>
-                    )}
-                  </div>
+                  <span className="font-medium">{option.label}</span>
                   <span className="text-xs text-muted-foreground">
                     .{option.extension}
                   </span>
