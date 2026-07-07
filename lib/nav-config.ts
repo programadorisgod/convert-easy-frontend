@@ -87,12 +87,12 @@ export const NAV_CATEGORIES: NavCategory[] = [
         description: "Add password protection",
         icon: Lock,
       },
-      {
-        label: "Compress PDF",
-        href: "/tools/pdf-compress",
-        description: "Reduce PDF file size",
-        icon: Archive,
-      },
+      // {
+      //   label: "Compress PDF",
+      //   href: "/tools/pdf-compress",
+      //   description: "Reduce PDF file size",
+      //   icon: Archive,
+      // },
     ],
   },
   {

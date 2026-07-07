@@ -649,19 +649,12 @@ export function ActionSidebar({
     }
 
     if (actionId === "pdf-add-image") {
-      const imageJobId = window.prompt(
-        "image_job_id (already uploaded image):",
-        "",
-      );
-      const pageRaw = window.prompt("Page number (1-based):", "1");
-      if (!imageJobId || !pageRaw) return;
-      runPdfOperation("add-image", "Insert image", {
-        image_job_id: imageJobId,
-        page_number: Number(pageRaw),
-        x0: 50,
-        y0: 50,
-        x1: 200,
-        y1: 200,
+      sileo.info({
+        title: "Próximamente",
+        description: "Insertar imágenes en PDF estará disponible en una actualización futura.",
+        icon: <Info className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
       });
       return;
     }
