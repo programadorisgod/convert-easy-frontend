@@ -1665,7 +1665,7 @@ export function ActionSidebar({
 
   return (
     <>
-      <aside className={cn("flex w-64 flex-col border-r bg-card", className)}>
+                <aside className={cn("flex w-72 flex-col overflow-hidden border-r bg-card", className)}>
         <div className="p-4">
           <h2 className="text-sm font-semibold text-foreground">Actions</h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -1733,17 +1733,17 @@ export function ActionSidebar({
               {backgroundJobs.map((job) => (
                 <div
                   key={job.id}
-                  className="flex items-center gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs"
+                  className="flex items-center gap-2 overflow-hidden rounded-md border bg-muted/40 px-2.5 py-1.5 text-xs"
                 >
                   {job.status === "downloading" ? (
                     <Download className="h-3.5 w-3.5 shrink-0 text-primary animate-bounce" />
                   ) : (
                     <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
                   )}
-                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                      {job.label}
-                    </span>
-                  <span className="text-muted-foreground shrink-0">
+                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                    {job.label}
+                  </span>
+                  <span className="shrink-0 truncate text-muted-foreground max-w-[7rem]">
                     {job.status === "downloading"
                       ? "Descargando…"
                       : job.status === "cancelling"
@@ -1779,7 +1779,7 @@ export function ActionSidebar({
                 onClick={() => handleActionClick(action.id)}
                 disabled={isConverting || action.comingSoon}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
+                  "flex w-full items-center gap-3 overflow-hidden rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
                   selectedAction === action.id
                     ? "bg-primary text-primary-foreground"
                     : "text-foreground hover:bg-accent hover:text-accent-foreground",
@@ -1788,7 +1788,7 @@ export function ActionSidebar({
               >
                 <action.icon className="h-4 w-4 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span className="truncate font-medium">{action.label}</span>
                     {action.comingSoon && (
                       <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary leading-none">
