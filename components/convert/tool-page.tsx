@@ -592,7 +592,7 @@ export function ToolPage({ config }: ToolPageProps) {
         </Link>
 
         <div className="mb-8">
-          <h1 className="mb-2 text-3xl font-bold">{config.title}</h1>
+          <h1 className="mb-2 text-3xl font-bold">{config.label}</h1>
           <p className="text-muted-foreground">{config.description}</p>
         </div>
 

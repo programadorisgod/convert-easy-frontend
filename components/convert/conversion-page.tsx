@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/file-utils";
 import { createFilePreviewUrl } from "@/lib/file-store";
 import { getConversionOptions } from "@/lib/file-actions";
-import type { ConversionConfig, ConversionOption } from "@/lib/conversion-config";
+import type { ConversionConfig } from "@/lib/conversion-config";
 import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
 import { VideoOptions, type VideoParams } from "@/components/video/video-options";
 import type { FileCategory } from "@/types/file";

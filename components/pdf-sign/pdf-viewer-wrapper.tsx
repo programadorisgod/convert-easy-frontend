@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import PDFViewer, { PDFViewerRef, PDFViewerProps } from "@embedpdf/react-pdf-viewer";
-import type { EmbedPdfContainer, PluginRegistry } from "@embedpdf/snippet";
+import type { EmbedPdfContainer, PluginRegistry } from "@embedpdf/react-pdf-viewer";
 
 export interface PdfViewerWrapperProps {
   /** PDF file to display */

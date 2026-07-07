@@ -367,9 +367,18 @@ export function ActionSidebar({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         removeBgJob(mergeJobId);
+
+        // Keep the blob URL alive so the download button doesn't re-fetch the backend (already cleaned up)
+        setDownloadUrl(url);
+
+        // Activate sidebar download button with the merged result
+        setCurrentJobId(mergeJobId);
+        setConversionStatus("completed");
+        setSelectedFormat("pdf");
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Merge error",
@@ -462,9 +471,18 @@ export function ActionSidebar({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         removeBgJob(jobId);
+
+        // Keep the blob URL alive so the download button doesn't re-fetch the backend (already cleaned up)
+        setDownloadUrl(url);
+
+        // Activate sidebar download button with the result from the backend
+        setCurrentJobId(jobId);
+        setConversionStatus("completed");
+        setSelectedFormat(finalExtension);
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "PDF error",
@@ -985,9 +1003,18 @@ export function ActionSidebar({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         removeBgJob(jobId);
+
+        // Keep the blob URL alive so the download button doesn't re-fetch the backend (already cleaned up)
+        setDownloadUrl(url);
+
+        // Activate sidebar download button with the converted result
+        setCurrentJobId(jobId);
+        setConversionStatus("completed");
+        setSelectedFormat(outputFormat);
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error en la conversión",
@@ -1095,9 +1122,18 @@ export function ActionSidebar({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         removeBgJob(jobId);
+
+        // Keep the blob URL alive so the download button doesn't re-fetch the backend (already cleaned up)
+        setDownloadUrl(url);
+
+        // Activate sidebar download button with the compressed result
+        setCurrentJobId(jobId);
+        setConversionStatus("completed");
+        setSelectedFormat(outputFormat);
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al comprimir",
@@ -1189,9 +1225,18 @@ export function ActionSidebar({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         removeBgJob(jobId);
+
+        // Keep the blob URL alive so the download button doesn't re-fetch the backend (already cleaned up)
+        setDownloadUrl(url);
+
+        // Activate sidebar download button with the result
+        setCurrentJobId(jobId);
+        setConversionStatus("completed");
+        setSelectedFormat("png");
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al remover fondo",
@@ -1278,9 +1323,18 @@ export function ActionSidebar({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         removeBgJob(jobId);
+
+        // Keep the blob URL alive so the download button doesn't re-fetch the backend (already cleaned up)
+        setDownloadUrl(url);
+
+        // Activate sidebar download button with the extracted audio
+        setCurrentJobId(jobId);
+        setConversionStatus("completed");
+        setSelectedFormat("mp3");
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al extraer audio",
@@ -1392,9 +1446,18 @@ export function ActionSidebar({
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         removeBgJob(jobId);
+
+        // Keep the blob URL alive so the download button doesn't re-fetch the backend (already cleaned up)
+        setDownloadUrl(url);
+
+        // Activate sidebar download button with the watermarked result
+        setCurrentJobId(jobId);
+        setConversionStatus("completed");
+        setSelectedFormat(outputFormat);
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al agregar marca de agua",
@@ -1464,7 +1527,7 @@ export function ActionSidebar({
 
   const handleDownload = async () => {
     if (!currentJobId || !selectedFormat) {
-      console.warn("Download blocked:", { currentJobId, selectedFormat });
+      console.warn("Download blocked:", { currentJobId, selectedFormat, downloadUrl });
       sileo.error({
         title: "No se puede descargar",
         description:
@@ -1479,8 +1542,8 @@ export function ActionSidebar({
     setIsDownloading(true);
 
     try {
-      const blob = await downloadResult(currentJobId, selectedFormat);
-      const url = URL.createObjectURL(blob);
+      // Use cached blob URL if available (backed cleanup after first download)
+      const url = downloadUrl || URL.createObjectURL(await downloadResult(currentJobId, selectedFormat));
       setDownloadUrl(url);
 
       // Trigger download
