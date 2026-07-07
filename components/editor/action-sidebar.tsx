@@ -2127,34 +2127,24 @@ export function ActionSidebar({
                 onValueChange={(value) =>
                   setWatermarkType(value as "text" | "logo")
                 }
-                className="grid gap-2"
+                className="grid grid-cols-2 gap-2"
               >
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-2">
                   <RadioGroupItem value="text" id="wm-text" />
                   <Label
                     htmlFor="wm-text"
-                    className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                    className="flex flex-1 cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-accent"
                   >
-                    <div>
-                      <div className="font-medium">Texto</div>
-                      <div className="text-xs text-muted-foreground">
-                        Agrega texto personalizado
-                      </div>
-                    </div>
+                    Texto
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-2">
                   <RadioGroupItem value="logo" id="wm-logo" disabled />
                   <Label
                     htmlFor="wm-logo"
-                    className="flex flex-1 cursor-not-allowed items-center justify-between rounded-md border p-3 opacity-50"
+                    className="flex flex-1 cursor-not-allowed rounded-md border px-3 py-2 text-sm opacity-50"
                   >
-                    <div>
-                      <div className="font-medium">Logo (Próximamente)</div>
-                      <div className="text-xs text-muted-foreground">
-                        Agrega tu logo
-                      </div>
-                    </div>
+                    Logo (Próximamente)
                   </Label>
                 </div>
               </RadioGroup>
@@ -2281,19 +2271,16 @@ export function ActionSidebar({
               <RadioGroup
                 value={watermarkFormat}
                 onValueChange={setWatermarkFormat}
-                className="grid gap-2"
+                className="grid grid-cols-3 gap-2"
               >
                 {["jpg", "png", "webp"].map((format) => (
-                  <div key={format} className="flex items-center space-x-3">
+                  <div key={format} className="flex items-center gap-2">
                     <RadioGroupItem value={format} id={`wm-format-${format}`} />
                     <Label
                       htmlFor={`wm-format-${format}`}
-                      className="flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-accent"
+                      className="flex flex-1 cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm hover:bg-accent"
                     >
-                      <div className="font-medium">{format.toUpperCase()}</div>
-                      <span className="text-xs text-muted-foreground">
-                        .{format}
-                      </span>
+                      .{format}
                     </Label>
                   </div>
                 ))}

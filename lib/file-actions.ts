@@ -35,6 +35,7 @@ export const FILE_ACTIONS: FileAction[] = [
     description: "Merge, split, or reorder pages",
     icon: Layers,
     category: ["document"],
+    inputFormats: ["pdf"],
   },
   {
     id: "sign",
@@ -42,13 +43,14 @@ export const FILE_ACTIONS: FileAction[] = [
     description: "Add digital signature",
     icon: PenTool,
     category: ["document"],
+    inputFormats: ["pdf"],
   },
   {
     id: "compress",
     label: "Compress",
     description: "Reduce file size",
     icon: Archive,
-    category: ["document", "image"],
+    category: ["image"],
   },
   {
     id: "pdf-merge",
