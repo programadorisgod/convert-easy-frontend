@@ -1727,7 +1727,7 @@ export function ActionSidebar({
           {/* Background jobs indicator (non-blocking) */}
           {backgroundJobs.length > 0 && (
             <div className="px-3 pt-3 pb-2 space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
+              <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1">
                 Procesando en segundo plano
               </p>
               {backgroundJobs.map((job) => (
@@ -1740,9 +1740,9 @@ export function ActionSidebar({
                   ) : (
                     <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary" />
                   )}
-                  <span className="flex-1 truncate font-medium text-foreground">
-                    {job.label}
-                  </span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                      {job.label}
+                    </span>
                   <span className="text-muted-foreground shrink-0">
                     {job.status === "downloading"
                       ? "Descargando…"
@@ -1789,7 +1789,7 @@ export function ActionSidebar({
                 <action.icon className="h-4 w-4 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{action.label}</span>
+                    <span className="truncate font-medium">{action.label}</span>
                     {action.comingSoon && (
                       <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary leading-none">
                         Próximamente
