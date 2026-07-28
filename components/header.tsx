@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { NAV_CATEGORIES, type NavCategory } from "@/lib/nav-config";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SupportDialog } from "@/components/support-dialog";
 import {
   Sheet,
   SheetContent,
@@ -146,6 +147,7 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+          <SupportDialog />
           <ThemeToggle />
 
           {/* Mobile Menu */}
