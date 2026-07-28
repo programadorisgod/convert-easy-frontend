@@ -265,4 +265,4 @@ Este es un proyecto en desarrollo activo. La documentación se actualiza continu
 
 ## 📄 Licencia
 
-[Especificar licencia]
+[LICENSE](./LICENSE.md)
