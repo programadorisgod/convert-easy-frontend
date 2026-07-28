@@ -1,6 +1,6 @@
 # Guía de Componentes
 
-## 📦 Componentes Principales
+## 📦 Componentes de Página
 
 ### FileDropzone
 
@@ -18,14 +18,6 @@ interface FileDropzoneProps {
 }
 ```
 
-#### Uso
-```tsx
-<FileDropzone
-  onFileSelect={(file) => console.log('Archivo seleccionado:', file)}
-  className="custom-class"
-/>
-```
-
 #### Features
 - Drag & drop de archivos
 - Click para seleccionar archivo
@@ -33,180 +25,6 @@ interface FileDropzoneProps {
 - Animaciones al arrastrar
 - Validación de archivos
 - Navegación automática al editor
-
-#### Estados
-- `isDragOver`: Cuando el usuario arrastra sobre la zona
-- `selectedFile`: Archivo seleccionado actualmente
-
----
-
-### FilePreview
-
-#### Ubicación
-`components/editor/file-preview.tsx`
-
-#### Descripción
-Muestra una preview del archivo cargado según su tipo.
-
-#### Props
-```typescript
-interface FilePreviewProps {
-  name: string
-  size: number
-  category: FileCategory
-  extension: string
-  previewUrl?: string
-  isProcessing?: boolean
-  className?: string
-}
-```
-
-#### Uso
-```tsx
-<FilePreview
-  name="documento.pdf"
-  size={1024000}
-  category="document"
-  extension="pdf"
-  previewUrl={previewUrl}
-  isProcessing={false}
-/>
-```
-
-#### Features
-- Preview de imágenes con `<img>`
-- Player de video con controles nativos
-- Player de audio con controles nativos
-- Icono con spinner cuando está procesando
-- Información del archivo (nombre, tamaño, extensión)
-
-#### Tipos de Preview
-- **Imagen**: Muestra la imagen con max-height de 400px
-- **Video**: Player con controles
-- **Audio**: Player con controles + icono
-- **Otros**: Icono de la categoría
-
----
-
-### ActionSidebar
-
-#### Ubicación
-`components/editor/action-sidebar.tsx`
-
-#### Descripción
-Sidebar con acciones disponibles según el tipo de archivo.
-
-#### Props
-```typescript
-interface ActionSidebarProps {
-  category: FileCategory
-  fileName: string
-  fileSize: number
-  onActionSelect?: (actionId: string, options?: Record<string, unknown>) => void
-  className?: string
-}
-```
-
-#### Uso
-```tsx
-<ActionSidebar
-  category="document"
-  fileName="documento.pdf"
-  fileSize={1024000}
-  onActionSelect={(action, options) => {
-    console.log('Acción:', action, options)
-  }}
-/>
-```
-
-#### Features
-- Muestra acciones según categoría de archivo
-- Diálogo modal para conversión con selección de formato
-- Toasts informativos al seleccionar acción
-- Mensaje especial para archivos >10MB
-
-#### Acciones Disponibles
-
-**Documentos**
-- Convertir (con diálogo de selección de formato)
-- Comprimir
-- Organizar
-- Firmar
-- Proteger
-- Desbloquear
-
-**Imágenes**
-- Convertir
-- Comprimir
-- Optimizar
-- Mejorar
-- Remover fondo
-- Recortar
-- Ampliar
-- Marca de agua
-- Pixelar cara
-
-**Videos**
-- Convertir
-- Comprimir
-- Recortar
-- Extraer audio
-- Agregar subtítulos
-- Cambiar velocidad
-
-**Audio**
-- Convertir
-- Comprimir
-- Recortar
-- Cambiar velocidad
-- Normalizar volumen
-- Remover ruido
-
----
-
-### SupportDialog
-
-#### Ubicación
-`components/support-dialog.tsx`
-
-#### Descripción
-Diálogo de soporte que permite a los usuarios enviar un email con descripción del problema y archivos adjuntos. Incluye validación, feedback visual y rate limiting.
-
-#### Uso
-```tsx
-import { SupportDialog } from "@/components/support-dialog"
-
-<SupportDialog />
-```
-
-#### Features
-- Formulario con email, descripción y hasta 3 archivos adjuntos
-- Validación manual con Zod v4 `safeParse` (sin react-hook-form por incompatibilidad con Zod v4)
-- Banner de éxito (verde) con animación fade-in + slide
-- Banner de error (rojo) con mensaje específico
-- Rate limiting dual:
-  - **Client**: localStorage, 5 emails/24h
-  - **Server**: Map en memoria por IP, 5 emails/24h
-- Warning amarillo cuando quedan ≤2 emails
-- Botón deshabilitado cuando se alcanza el límite
-- Archivos aceptados: PNG, JPG, JPEG, PDF, TXT, CSV, DOC, DOCX (max 5MB cada uno)
-
-#### Server Action
-`app/support/actions.ts` → `sendSupportEmail(formData)`
-
-- Valida schema con Zod
-- Verifica rate limit por IP (`x-forwarded-for`)
-- Procesa archivos adjuntos a base64
-- Envía email vía Resend
-- Retorna `{ ok: boolean, error?: string, remaining?: number }`
-
-#### Estado del Formulario
-Manejo manual con `useState` (no react-hook-form):
-- `email`, `description` → valores del form
-- `fieldErrors` → errores por campo
-- `submitResult` → resultado del envío (success/error)
-- `sending` → estado de carga
-- `remaining` → emails restantes hoy
 
 ---
 
@@ -216,117 +34,207 @@ Manejo manual con `useState` (no react-hook-form):
 `components/header.tsx`
 
 #### Descripción
-Header principal de la aplicación con logo, navegación y toggle de tema.
-
-#### Props
-Sin props específicas
-
-#### Uso
-```tsx
-<Header />
-```
+Header principal con logo, navegación y toggle de tema.
 
 #### Features
 - Logo y nombre de la app
 - Toggle de tema (Light/Dark/Blue)
 - Navegación responsive
 - Links a herramientas por categoría
+- Botón de Support
 
 ---
 
-### ThemeToggle
+### ConversionPage
 
 #### Ubicación
-`components/theme-toggle.tsx`
+`components/convert/conversion-page.tsx`
 
 #### Descripción
-Toggle para cambiar entre los 3 temas disponibles.
+Página principal de conversión. Maneja upload, progreso y descarga.
 
 #### Props
-Sin props específicas
-
-#### Uso
-```tsx
-<ThemeToggle />
+```typescript
+interface ConversionPageProps {
+  config: ConversionConfig
+}
 ```
 
 #### Features
-- Selector dropdown con iconos
-- Opción para seguir tema del sistema
-- 3 temas: Light, Dark, Blue
-- Persiste preferencia en localStorage
+- Upload de archivos
+- Progress tracking (upload + conversion)
+- Cancelación de conversión
+- Descarga de resultado
+- Manejo de errores
 
 ---
 
-## 🎨 Componentes UI (shadcn/ui)
+### ActionExecutor
 
-### Button
-```tsx
-import { Button } from "@/components/ui/button"
+#### Ubicación
+`components/convert/action-executor.tsx`
 
-<Button variant="default" size="sm">Click me</Button>
-```
-
-**Variants**: `default`, `destructive`, `outline`, `ghost`, `link`  
-**Sizes**: `default`, `sm`, `lg`, `icon`
+#### Descripción
+Componente que ejecuta acciones de conversión y muestra progreso.
 
 ---
 
-### Dialog
-```tsx
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+### ToolPage
 
-<Dialog open={open} onOpenChange={setOpen}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Título</DialogTitle>
-      <DialogDescription>Descripción</DialogDescription>
-    </DialogHeader>
-    {/* Contenido */}
-  </DialogContent>
-</Dialog>
+#### Ubicación
+`components/convert/tool-page.tsx`
+
+#### Descripción
+Página genérica para herramientas (PDF sign, trim, compress, etc).
+
+#### Props
+```typescript
+interface ToolPageProps {
+  config: ToolConfig
+}
 ```
 
 ---
 
-### RadioGroup
-```tsx
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
+## 🎨 Componentes del Editor
 
-<RadioGroup value={value} onValueChange={setValue}>
-  <div className="flex items-center space-x-2">
-    <RadioGroupItem value="option1" id="option1" />
-    <Label htmlFor="option1">Opción 1</Label>
-  </div>
-</RadioGroup>
-```
+### FilePreview
+
+#### Ubicación
+`components/editor/file-preview.tsx`
+
+#### Descripción
+Muestra preview del archivo según su tipo.
+
+#### Features
+- Preview de imágenes con `<img>`
+- Player de video con controles nativos
+- Player de audio con controles nativos
+- Icono con spinner cuando está procesando
+- Información del archivo (nombre, tamaño, extensión)
+
+### ActionSidebar
+
+#### Ubicación
+`components/editor/action-sidebar.tsx`
+
+#### Descripción
+Sidebar con acciones disponibles según el tipo de archivo.
+
+#### Features
+- Muestra acciones según categoría de archivo
+- Diálogo modal para conversión con selección de formato
+- Toasts informativos al seleccionar acción
+- Mensaje especial para archivos >10MB
+
+### ImageCropDialog
+
+#### Ubicación
+`components/editor/image-crop-dialog.tsx`
+
+#### Descripción
+Diálogo para recortar imágenes usando `react-advanced-cropper`.
+
+#### Features
+- Recorte visual con handles
+- Aspect ratio presets
+- Preview del resultado
 
 ---
 
-### ScrollArea
-```tsx
-import { ScrollArea } from "@/components/ui/scroll-area"
+## 📧 Soporte
 
-<ScrollArea className="h-[400px]">
-  {/* Contenido scrolleable */}
-</ScrollArea>
-```
+### SupportDialog
+
+#### Ubicación
+`components/support-dialog.tsx`
+
+#### Descripción
+Diálogo de soporte con email, descripción y adjuntos. Incluye validación, feedback visual y rate limiting.
+
+#### Features
+- Formulario con email, descripción y hasta 3 archivos adjuntos
+- Validación manual con Zod v4 `safeParse`
+- Banner de éxito (verde) con animación fade-in + slide
+- Banner de error (rojo) con mensaje específico
+- Rate limiting dual: client (localStorage) + server (IP), 5 emails/24h
+- Warning amarillo cuando quedan ≤2 emails
+- Archivos aceptados: PNG, JPG, JPEG, PDF, TXT, CSV, DOC, DOCX (max 5MB)
+
+#### Server Action
+`app/support/actions.ts` → `sendSupportEmail(formData)`
 
 ---
 
-### Separator
-```tsx
-import { Separator } from "@/components/ui/separator"
+## ✍️ Firma de PDF
 
-<Separator />
-```
+### PdfSignPage
+
+#### Ubicación
+`components/pdf-sign/pdf-sign-page.tsx`
+
+#### Descripción
+Página principal para firmar PDFs.
+
+### PdfSignOverlay
+
+#### Ubicación
+`components/pdf-sign/pdf-sign-overlay.tsx`
+
+#### Descripción
+Overlay para colocar firmas en el PDF.
+
+### PdfViewerWrapper
+
+#### Ubicación
+`components/pdf-sign/pdf-viewer-wrapper.tsx`
+
+#### Descripción
+Wrapper para el visor de PDFs (`@embedpdf/react-pdf-viewer`).
+
+### SignatureCanvas
+
+#### Ubicación
+`components/signature/signature-canvas.tsx`
+
+#### Descripción
+Canvas para dibujar firmas a mano.
+
+### TextSignature
+
+#### Ubicación
+`components/signature/text-signature.tsx`
+
+#### Descripción
+Selector de firma con texto estilizado (fuentes, colores).
+
+### SignaturePicker
+
+#### Ubicación
+`components/signature/signature-picker.tsx`
+
+#### Descripción
+Selector entre firma dibujada o firma de texto.
+
+---
+
+## 🎬 Media Options
+
+### VideoOptions
+
+#### Ubicación
+`components/video/video-options.tsx`
+
+#### Descripción
+Opciones de conversión de video (formato, calidad, etc).
+
+### AudioOptions
+
+#### Ubicación
+`components/audio/audio-options.tsx`
+
+#### Descripción
+Opciones de conversión de audio (formato, bitrate, etc).
 
 ---
 
@@ -338,9 +246,8 @@ import { Separator } from "@/components/ui/separator"
 `components/theme-provider.tsx`
 
 #### Descripción
-Provider de next-themes configurado para 3 temas.
+Provider de `next-themes` configurado para 3 temas.
 
-#### Uso
 ```tsx
 <ThemeProvider
   attribute="class"
@@ -349,11 +256,7 @@ Provider de next-themes configurado para 3 temas.
   themes={["light", "dark", "blue"]}
   disableTransitionOnChange
 >
-  {children}
-</ThemeProvider>
 ```
-
----
 
 ### SileoProvider
 
@@ -361,60 +264,69 @@ Provider de next-themes configurado para 3 temas.
 `components/sileo-provider.tsx`
 
 #### Descripción
-Provider de Sileo para toasts.
+Provider de Sonner para toasts.
 
-#### Configuración
 ```tsx
 <Toaster
   position="bottom-right"
   theme="system"
   offset={16}
-  options={{
-    autopilot: true,
-    duration: 5000,
-    styles: {
-      title: "text-foreground!",
-      description: "text-foreground/75!",
-    },
-  }}
+  duration={5000}
 />
 ```
 
-#### Uso de Toasts
-```tsx
-import { sileo } from "sileo"
+---
 
-// Success toast
-sileo.success({
-  title: "Éxito",
-  description: "Operación completada",
-  icon: <CheckIcon className="size-3.5" />,
-  roundness: 16,
-  styles: {
-    description: "text-foreground/75!",
-  },
-  autopilot: {
-    expand: 200,
-    collapse: 3000,
-  },
-  duration: 4000,
-})
+## 🧩 Componentes UI (shadcn/ui)
 
-// Error toast
-sileo.error({
-  title: "Error",
-  description: "Algo salió mal",
-  icon: <AlertCircle className="size-3.5" />,
-  // ... opciones similares
-})
+Todos los componentes UI están en `components/ui/`. Los más usados:
 
-// Info toast
-sileo.info({
-  title: "Información",
-  description: "Nota importante",
-  // ... opciones similares
-})
-```
+| Componente | Uso |
+|------------|-----|
+| `Button` | Botones con variants (default, destructive, outline, ghost, link) |
+| `Dialog` | Modales y diálogos |
+| `Input` | Campos de texto |
+| `Textarea` | Campos de texto multilinea |
+| `Label` | Labels de formularios |
+| `Select` | Dropdowns |
+| `Tabs` | Navegación por tabs |
+| `Card` | Contenedores con header/content/footer |
+| `Progress` | Barras de progreso |
+| `Tooltip` | Tooltips informativos |
+| `Drawer` | Drawer mobile (vaul) |
+| `Command` | Command palette (cmdk) |
+| `Calendar` | Selector de fechas (react-day-picker) |
+| `Chart` | Gráficos (recharts) |
+| `Carousel` | Carrusel (embla-carousel) |
+| `Accordion` | Acordeón expandible |
+| `Alert` | Mensajes de alerta |
+| `Badge` | Badges/etiquetas |
+| `Checkbox` | Checkboxes |
+| `Switch` | Toggle switches |
+| `Slider` | Sliders de rango |
+| `RadioGroup` | Grupo de radio buttons |
+| `Popover` | Popovers |
+| `HoverCard` | Hover cards |
+| `ContextMenu` | Menús contextuales |
+| `DropdownMenu` | Menús dropdown |
+| `NavigationMenu` | Menús de navegación |
+| `Menubar` | Barras de menú |
+| `Pagination` | Paginación |
+| `Skeleton` | Loading skeletons |
+| `Spinner` | Spinners de carga |
+| `Separator` | Separadores visuales |
+| `ScrollArea` | Áreas scrolleables |
+| `Resizable` | Paneles redimensionables |
+| `Toggle` / `ToggleGroup` | Toggle buttons |
+| `AspectRatio` | Contenedores con aspect ratio |
+| `Avatar` | Avatares de usuario |
+| `Breadcrumb` | Navegación breadcrumb |
+| `Collapsible` | Contenido colapsable |
+| `Empty` | Estado vacío |
+| `Field` / `Item` / `InputGroup` / `Kbd` | Componentes de formulario avanzados |
+| `Table` | Tablas de datos |
+| `Toaster` / `Toast` | Toasts (radix, legacy) |
+| `Sonner` | Toasts (sonner, actual) |
 
 ---
 
@@ -445,10 +357,10 @@ const CONSTANT_VALUE = "value"
 export function Component({ prop1, prop2 }: ComponentProps) {
   // Hooks
   const [state, setState] = useState()
-  
+
   // Handlers
   const handleClick = () => { }
-  
+
   // Render
   return (
     <div>
@@ -463,49 +375,9 @@ export function Component({ prop1, prop2 }: ComponentProps) {
 - Usar destructuring en parámetros
 - Incluir `className?: string` para personalización
 
-### Estados
-- Usar hooks de React nativos
-- useState para estado simple
-- useMemo para cálculos derivados
-- useCallback para funciones memorizadas
-
 ### Estilos
 - Usar Tailwind CSS exclusivamente
 - Usar `cn()` helper para combinar clases
 - Seguir guía de estilos de shadcn/ui
 - Usar variables CSS para temas
-
----
-
-## 🔍 Patrones Útiles
-
-### Componente con Suspense
-```tsx
-function EditorPage() {
-  return (
-    <Suspense fallback={<LoadingFallback />}>
-      <EditorContent />
-    </Suspense>
-  )
-}
-```
-
-### Componente con Error Boundary
-```tsx
-if (error) {
-  return <ErrorState error={error} />
-}
-```
-
-### Componente Condicional
-```tsx
-{condition && <Component />}
-{condition ? <ComponentA /> : <ComponentB />}
-```
-
-### Componente con Ref
-```tsx
-const inputRef = useRef<HTMLInputElement>(null)
-
-return <input ref={inputRef} />
-```
+- Animaciones con `tw-animate-css` (`animate-in`, `fade-in`, `slide-in-from-*`)

@@ -2,123 +2,200 @@
 
 ## 🏗️ Visión General
 
-Convert Easy es una aplicación de conversión de archivos que prioriza la privacidad del usuario mediante procesamiento local y uploads encriptados.
+Convert Easy es una aplicación Next.js 16 de conversión de archivos con enfoque en privacidad. El frontend se comunica con un backend FastAPI para procesamiento de archivos, con soporte para conversiones, compresión, edición de PDFs, procesamiento de imágenes/audio/video, y firma de documentos.
 
 ## 📐 Arquitectura de Componentes
 
 ```
-┌─────────────────────────────────────────────┐
-│           App Layout (Root)                 │
-│  ┌─────────────────────────────────────┐   │
-│  │  ThemeProvider (Light/Dark/Blue)    │   │
-│  │  ┌───────────────────────────────┐  │   │
-│  │  │     SileoProvider (Toasts)    │  │   │
-│  │  │  ┌─────────────────────────┐  │  │   │
-│  │  │  │   Page Content          │  │  │   │
-│  │  │  └─────────────────────────┘  │  │   │
-│  │  └───────────────────────────────┘  │   │
-│  └─────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                 Root Layout                             │
+│  ┌───────────────────────────────────────────────────┐ │
+│  │  ThemeProvider (Light/Dark/Blue)                  │ │
+│  │  ┌─────────────────────────────────────────────┐  │ │
+│  │  │  SileoProvider (Toasts)                     │  │ │
+│  │  │  ┌───────────────────────────────────────┐  │  │ │
+│  │  │  │  Page Content (App Router routes)     │  │  │ │
+│  │  │  │  + Vercel Analytics                   │  │  │ │
+│  │  │  └───────────────────────────────────────┘  │  │ │
+│  │  └─────────────────────────────────────────────┘  │ │
+│  └───────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## 🔄 Flujo de Datos
+## 🗺️ Rutas (App Router)
+
+| Ruta | Archivo | Tipo | Descripción |
+|------|---------|------|-------------|
+| `/` | `app/page.tsx` | Static | Landing page con hero + FileDropzone + features |
+| `/editor` | `app/editor/page.tsx` | Dynamic | Editor de archivos con preview y sidebar de acciones |
+| `/convert/[slug]` | `app/convert/[slug]/page.tsx` | Dynamic | Página de conversión (ej: `/convert/pdf`, `/convert/docx-to-pdf`) |
+| `/tools/[slug]` | `app/tools/[slug]/page.tsx` | Dynamic | Página de herramientas (ej: `/tools/pdf-sign`, `/tools/trim-video`) |
+
+### Error Boundaries
+
+- `/convert/[slug]/loading.tsx` — Loading state para conversiones
+- `/convert/[slug]/error.tsx` — Error boundary para conversiones
+
+## 🔄 Flujo de Conversión (IMPLEMENTADO)
 
 ### 1. Carga de Archivo
 
 ```
-Usuario arrastra archivo
-    ↓
-FileDropzone detecta archivo
+Usuario arrastra archivo → FileDropzone
     ↓
 createFileInfo() extrae metadatos
     ↓
-storeFile() guarda en memoria
+storeFile() guarda en memoria (Map)
     ↓
 sessionStorage guarda metadatos
     ↓
 Router navega a /editor
 ```
 
-### 2. Vista del Editor
+### 2. Conversión vía Backend
 
 ```
-EditorContent lee sessionStorage
+Usuario selecciona acción (convert/compress/etc)
     ↓
-getFile() recupera archivo del store
+createJob() crea trabajo en backend
     ↓
-createFilePreviewUrl() crea URL de preview
+uploadFile() sube archivo (endpoint /file para <10MB)
     ↓
-FilePreview muestra preview
+startConversion() o processDocument() inicia procesamiento
     ↓
-ActionSidebar muestra acciones disponibles
+pollJobStatus() o WebSocket monitorea progreso
+    ↓
+downloadResult() descarga archivo convertido
 ```
 
-### 3. Procesamiento de Archivo
+### 3. Herramientas Especializadas
 
 ```
-Usuario selecciona acción
+Usuario navega a /tools/[slug]
     ↓
-handleActionSelect() maneja la acción
+ToolPage renderiza según configuración
     ↓
-Verifica tamaño del archivo
+Upload + operación específica (sign, trim, compress, etc)
     ↓
-< 10MB: Procesamiento local (futuro)
-> 10MB: Upload encriptado (futuro)
-    ↓
-Muestra toast con progreso
-    ↓
-Descarga resultado
+Resultado descargable
 ```
 
 ## 🗂️ Gestión de Estado
 
 ### Client State
 
-- **React Hooks**: useState, useEffect, useMemo para estado local
-- **File Store**: Map en memoria para archivos cargados
+- **React Hooks**: useState, useEffect, useMemo, useCallback
+- **File Store** (`lib/file-store.ts`): Map en memoria para archivos cargados
 - **Session Storage**: Metadatos de archivos entre navegaciones
+- **Signature Store** (`lib/signature-store.ts` + `hooks/use-signature-store.ts`): Persistencia de firmas
+- **Conversion State** (`hooks/use-conversion.ts`): Estado de conversión (idle→uploading→converting→completed/error)
 
-### No se usa estado global porque:
+### Custom Hooks
 
-- La app tiene flujo lineal (carga → edición → conversión)
-- No hay múltiples archivos simultáneos
-- No hay estado compartido complejo
+| Hook | Archivo | Propósito |
+|------|---------|-----------|
+| `useConversion` | `hooks/use-conversion.ts` | Gestión completa de conversión (upload, poll, download, cancel) |
+| `useSignatureStore` | `hooks/use-signature-store.ts` | Gestión de firmas dibujadas/texto |
+| `usePdfSigning` | `hooks/use-pdf-signing.ts` | Flujo de firma de PDFs |
+| `useDragResize` | `hooks/use-drag-resize.ts` | Redimensionamiento por drag |
+| `useMobile` | `hooks/use-mobile.ts` | Detección de viewport mobile |
+| `useToast` | `hooks/use-toast.ts` | Legacy toast hook (usar `sonner` directamente) |
 
 ## 📦 Módulos Principales
 
-### `/lib/file-utils.ts`
+### `/lib/api-service.ts` (973 líneas)
 
-Utilidades para trabajar con archivos:
+Servicio completo de comunicación con el backend FastAPI:
 
-- `createFileInfo()`: Crea objeto FileInfo con metadatos
-- `formatFileSize()`: Formatea bytes a KB/MB/GB
-- `getCategoryLabel()`: Obtiene etiqueta legible de categoría
-- `isLargeFile()`: Verifica si archivo es >10MB
+**Conversión básica:**
+- `createJob()` — Crea trabajo de conversión
+- `uploadFile()` — Sube archivo (auto chunking)
+- `startConversion()` — Inicia conversión
+- `getJobStatus()` — Obtiene estado del trabajo
+- `pollJobStatus()` — Polling hasta completado/fallo
+- `downloadResult()` — Descarga resultado
+- `cancelJob()` — Cancela trabajo
+- `createJobWebSocket()` — WebSocket para updates en tiempo real
+
+**Procesamiento de documentos:**
+- `processDocument()` — Pipeline de conversión de documentos
+
+**Procesamiento de imágenes:**
+- `removeBackground()` — Remover fondo con IA
+- `compressImage()` — Comprimir imagen
+- `addWatermark()` — Agregar marca de agua
+- `processImageFile()` — Flujo completo con polling
+
+**Procesamiento de PDF:**
+- `processPdfFile()` — Operaciones PDF (merge, split, encrypt, etc)
+- `createUploadedJob()` — Crear job con upload
+- `queuePdfMergeFromJobs()` — Unir múltiples PDFs
+
+**Procesamiento de audio:**
+- `processAudio()` — Operación de audio
+- `processAudioFile()` — Flujo completo con polling
+
+**Procesamiento de video:**
+- `processVideo()` — Operación de video
+- `processVideoFile()` — Flujo completo con polling
+
+**Conversión XML:**
+- `convertXmlToJson()` — XML → JSON
+- `convertXmlToYaml()` — XML → YAML
+- `convertXmlToHtml()` — XML → HTML
+- `convertXmlToCsv()` — XML → CSV
+
+### `/lib/conversion-config.ts`
+
+Configuración data-driven de conversiones y herramientas:
+
+- `CONVERSION_CONFIGS` — 12 configuraciones de conversión (docx→pdf, pdf→*, video→*, audio→*)
+- `TOOL_CONFIGS` — 8 herramientas (pdf-organize, pdf-sign, pdf-protect, pdf-compress, extract-audio, trim-video, trim-audio, normalize-audio)
+- `getConversionConfig()`, `getToolConfig()` — Helpers de acceso
 
 ### `/lib/file-store.ts`
 
-Store en memoria para archivos:
+Store en memoria con Map:
+- `storeFile()`, `getFile()`, `removeFile()`, `clearAllFiles()`
+- `createFilePreviewUrl()`, `revokeFilePreviewUrl()`
 
-- `storeFile()`: Guarda archivo en Map
-- `getFile()`: Recupera archivo del Map
-- `createFilePreviewUrl()`: Crea URL de objeto para preview
-- `revokeFilePreviewUrl()`: Limpia URL de objeto
+### `/lib/file-utils.ts`
+
+Utilidades de archivos:
+- `createFileInfo()`, `formatFileSize()`, `getCategoryLabel()`, `isLargeFile()`
 
 ### `/lib/file-actions.ts`
 
-Configuración data-driven de acciones:
-
-- Define acciones disponibles por categoría
-- Formatos de conversión disponibles
-- Iconos y labels para cada acción
+Configuración de acciones por categoría de archivo.
 
 ### `/lib/nav-config.ts`
 
-Configuración de navegación del header:
+Configuración de navegación del header.
 
-- Menús por categoría de archivo
-- Herramientas disponibles
-- Rutas y enlaces
+### `/lib/mail.ts`
+
+Servicio de email con Resend:
+- `mail.send()` — Envía emails con adjuntos
+
+### `/lib/env.ts`
+
+Validación de variables de entorno con Zod.
+
+### `/lib/pdf-signing.ts`
+
+Utilidades para firma de PDFs.
+
+### `/lib/signature-store.ts`
+
+Store para firmas (drawn + text signatures).
+
+### `/lib/image-crop.ts`
+
+Utilidades para recorte de imágenes (react-advanced-cropper).
+
+### `/lib/video-constants.ts` / `/lib/audio-constants.ts`
+
+Constantes de formatos y opciones para video y audio.
 
 ## 🎨 Sistema de Temas
 
@@ -126,15 +203,9 @@ Configuración de navegación del header:
 
 ```css
 /* globals.css */
-:root {
-  /* Light theme */
-}
-.dark {
-  /* Dark theme */
-}
-.blue {
-  /* Blue theme */
-}
+:root { /* Light theme */ }
+.dark { /* Dark theme */ }
+.blue { /* Blue theme */ }
 ```
 
 ### Paleta Blue
@@ -144,7 +215,6 @@ Configuración de navegación del header:
 --primary-foreground: #ffffff;
 --background: #0b1a2e;
 --foreground: #d7e6fa;
-/* ... más variables */
 ```
 
 ### Provider
@@ -153,115 +223,69 @@ Configuración de navegación del header:
 <ThemeProvider
   attribute="class"
   defaultTheme="system"
+  enableSystem
   themes={["light", "dark", "blue"]}
+  disableTransitionOnChange
 >
 ```
 
-## 🎯 Tipos de Archivo
+## 🔌 Integraciones
 
-### FileCategory
+### Backend API
 
-```typescript
-type FileCategory = "document" | "image" | "video" | "audio" | "unknown";
-```
+- **Framework**: FastAPI
+- **URL**: `NEXT_PUBLIC_API_URL` (dev: `http://127.0.0.1:8000`)
+- **WebSocket**: `ws://127.0.0.1:8000/api/v1/ws/jobs/{jobId}`
+- **Endpoints**: `/api/v1/upload/*`, `/api/v1/jobs/*`, `/api/v1/process/*`, `/api/v1/convert/*`
 
-### FileInfo
+### Email (Resend)
 
-```typescript
-interface FileInfo {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  extension: string;
-  category: FileCategory;
-  file: File;
-  previewUrl?: string;
-  state: FileState;
-}
-```
+- **API Key**: `RESEND_API_KEY`
+- **Destino**: `RESEND_EMAIL`
+- **Uso**: Support dialog con adjuntos
 
-### FileState
+### Analytics
 
-```typescript
-type FileState =
-  | "idle"
-  | "selected"
-  | "uploading"
-  | "queued"
-  | "processing"
-  | "completed"
-  | "error";
-```
+- **Vercel Analytics** integrado en `app/layout.tsx`
 
-## 🔌 Integraciones Futuras
-
-### Backend API (Planeado)
-
-- Endpoint para conversión de archivos grandes
-- Upload con chunks para archivos pesados
-- Procesamiento serverless
-- Encriptación end-to-end
-
-### WebAssembly (Planeado)
-
-- FFmpeg.wasm para conversión de video/audio local
-- Sharp/ImageMagick para procesamiento de imágenes
-- PDF.js para manipulación de PDFs
-
-## 🔒 Consideraciones de Seguridad
+## 🔒 Seguridad
 
 ### Validación de Archivos
 
 - Verificación de extensiones permitidas
 - Validación de MIME types
-- Límites de tamaño de archivo
+- Límites de tamaño (100MB max)
 - Sanitización de nombres de archivo
 
-### Privacidad
+### Error Sanitization
 
-- Archivos no se almacenan en servidor
-- Procesamiento local cuando es posible
-- URLs de preview son temporales
-- Limpieza de memoria después de procesamiento
+- `sanitizeErrorMessage()` en `api-service.ts` elimina paths internos y tracebacks de Python
+- Mensajes de error user-friendly en español
+
+### Rate Limiting (Support)
+
+- Server: 5 emails/día por IP (Map en memoria)
+- Client: 5 emails/día por localStorage
 
 ## 🚀 Performance
 
 ### Optimizaciones Implementadas
 
-- Lazy loading de componentes del editor
-- Preview URLs creadas solo cuando se necesitan
-- Suspense boundaries para carga asíncrona
-- Turbopack para builds rápidos
+- Turbopack para desarrollo rápido
+- Polling inteligente (1s interval, 300 max attempts = 5 min timeout)
+- WebSocket para updates en tiempo real
+- Lazy loading de componentes
+- Suspense boundaries
 
-### Optimizaciones Futuras
-
-- Web Workers para procesamiento pesado
-- Streaming de archivos grandes
-- Compresión de assets
-- Service Workers para caching
-
-## 📊 Métricas y Analytics
+## 📊 Métricas
 
 - Vercel Analytics integrado
 - Tracking de conversiones exitosas/fallidas
-- Monitoreo de performance
-- Error tracking
 
-## 🧪 Testing (Planeado)
+## 🧪 Testing
 
-### Unit Tests
+### Planeado
 
-- Vitest para testing de utilidades
+- Vitest para utilidades
+- Playwright para E2E
 - Testing Library para componentes
-
-### E2E Tests
-
-- Playwright para flujos completos
-- Tests de drag & drop
-- Tests de conversión
-
-### Integration Tests
-
-- Tests de API cuando se implemente backend
-- Tests de upload de archivos

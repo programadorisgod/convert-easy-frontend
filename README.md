@@ -191,7 +191,7 @@ pnpm lint
   - Rate limiting: 5 emails/día por IP (server) + localStorage (client)
   - Envío de emails vía Resend con adjuntos
 
-### ✅ Conversión de Imágenes (Fase 1)
+### ✅ Conversión y Herramientas (Fase 1+)
 
 - [x] Upload de archivos pequeños (<10MB)
 - [x] Upload chunked para archivos grandes (>10MB)
@@ -201,18 +201,27 @@ pnpm lint
 - [x] Cancelación de conversión
 - [x] Descarga de resultados
 - [x] Limpieza automática después de descarga
+- [x] WebSocket para updates en tiempo real
+- [x] Conversiones de documentos (docx→pdf/html/md/odt, pdf→*)
+- [x] Conversiones de video (→mp4, →mkv, →webm)
+- [x] Conversiones de audio (→mp3, →flac, →wav)
+- [x] Herramientas PDF (organize, sign, protect, compress)
+- [x] Herramientas de video (extract audio, trim)
+- [x] Herramientas de audio (trim, normalize)
+- [x] Procesamiento de imágenes (remove background, compress, watermark)
+- [x] Conversión XML (→json, →yaml, →html, →csv)
 - [x] Formatos soportados:
-  - **Input**: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG
-  - **Output**: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF
+  - **Input**: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, SVG, PDF, DOCX, ODT, TXT, MD, HTML, MP4, MKV, AVI, WebM, MOV, FLV, MP3, WAV, FLAC, OGG, AAC, M4A, XML
+  - **Output**: JPEG, PNG, WebP, AVIF, HEIC, TIFF, BMP, GIF, PDF, HTML, MD, ODT, MP4, MKV, WebM, MP3, FLAC, WAV, JSON, YAML, CSV
 
 ### 🔄 En Desarrollo
 
-- [ ] Conversión de archivos
-- [ ] Compresión de archivos
-- [ ] Procesamiento de imágenes
-- [ ] Procesamiento de videos
-- [ ] Procesamiento de audio
+- [ ] Conversión de archivos XML (JSON, YAML, HTML, CSV)
+- [ ] Compresión de imágenes con IA
+- [ ] Procesamiento de video avanzado
+- [ ] Procesamiento de audio avanzado
 - [ ] Upload seguro con encriptación
+- [ ] Tests unitarios y E2E
 
 ## 📄 Tipos de Archivos Soportados
 
@@ -268,6 +277,7 @@ pnpm lint
 - [Arquitectura](./docs/ARCHITECTURE.md)
 - [Componentes](./docs/COMPONENTS.md)
 - [API de Archivos](./docs/FILE_API.md)
+- [Conversiones y Herramientas](./docs/TOOLS.md)
 
 ## 🤝 Contribución
 

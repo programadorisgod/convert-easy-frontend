@@ -1,6 +1,6 @@
 # API de Archivos
 
-## 📚 Módulos de Utilidades
+## 📚 Utilidades de Archivos
 
 ### `/lib/file-utils.ts`
 
@@ -9,65 +9,27 @@
 Crea un objeto FileInfo a partir de un File nativo del navegador.
 
 ```typescript
-const file = new File(['content'], 'doc.pdf', { type: 'application/pdf' })
 const fileInfo = createFileInfo(file)
+// { id: "uuid", name: "doc.pdf", size: 1024, category: "document", ... }
 ```
-
-**Retorna:**
-```typescript
-{
-  id: string,           // UUID único
-  name: string,         // Nombre del archivo
-  size: number,         // Tamaño en bytes
-  type: string,         // MIME type
-  extension: string,    // Extensión sin punto
-  category: FileCategory, // Categoría detectada
-  file: File,           // Archivo original
-  state: "idle"         // Estado inicial
-}
-```
-
----
 
 #### `formatFileSize(bytes: number): string`
 
-Formatea bytes a unidades legibles.
-
 ```typescript
-formatFileSize(1024)      // "1 KB"
-formatFileSize(1048576)   // "1 MB"
-formatFileSize(1073741824) // "1 GB"
+formatFileSize(1024)       // "1 KB"
+formatFileSize(1048576)    // "1 MB"
 ```
 
----
-
 #### `getCategoryLabel(category: FileCategory): string`
-
-Obtiene etiqueta legible de categoría.
 
 ```typescript
 getCategoryLabel("document") // "Documento"
 getCategoryLabel("image")    // "Imagen"
-getCategoryLabel("video")    // "Video"
-getCategoryLabel("audio")    // "Audio"
-getCategoryLabel("unknown")  // "Archivo"
 ```
-
----
 
 #### `isLargeFile(size: number): boolean`
 
 Verifica si un archivo es mayor a 10MB.
-
-```typescript
-isLargeFile(5 * 1024 * 1024)  // false (5MB)
-isLargeFile(15 * 1024 * 1024) // true (15MB)
-```
-
-**Constante:**
-```typescript
-const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024 // 10MB
-```
 
 ---
 
@@ -75,171 +37,134 @@ const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024 // 10MB
 
 Store en memoria para archivos cargados. Usa un `Map<string, File>` interno.
 
-#### `storeFile(id: string, file: File): void`
+| Función | Descripción |
+|---------|-------------|
+| `storeFile(id, file)` | Guarda un archivo en el store |
+| `getFile(id)` | Recupera un archivo del store |
+| `removeFile(id)` | Elimina un archivo del store |
+| `clearAllFiles()` | Limpia todos los archivos |
+| `createFilePreviewUrl(file)` | Crea URL temporal para preview |
+| `revokeFilePreviewUrl(url)` | Revoca URL de preview para liberar memoria |
 
-Guarda un archivo en el store.
+---
+
+## 🔌 API Service (`lib/api-service.ts`)
+
+Servicio completo de comunicación con el backend FastAPI.
+
+### Constantes
 
 ```typescript
-const file = new File(['content'], 'doc.pdf')
-const fileId = crypto.randomUUID()
-storeFile(fileId, file)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+const CHUNK_SIZE = 5 * 1024 * 1024        // 5MB
+const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024  // 10MB
+```
+
+### Conversión Básica
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `createJob(request)` | `POST /api/v1/upload/create` | Crea trabajo de conversión |
+| `uploadFile(file, jobId, onProgress)` | `POST /api/v1/upload/{id}/file` | Sube archivo completo |
+| `uploadChunk(jobId, index, chunk)` | `POST /api/v1/upload/{id}/chunk` | Sube un chunk |
+| `mergeChunks(jobId)` | `POST /api/v1/upload/{id}/merge` | Une chunks |
+| `startConversion(jobId)` | `POST /api/v1/upload/{id}/start` | Inicia conversión |
+| `getJobStatus(jobId)` | `GET /api/v1/jobs/{id}` | Obtiene estado |
+| `pollJobStatus(jobId, callback)` | `GET /api/v1/jobs/{id}` | Polling hasta completado |
+| `downloadResult(jobId, format)` | `GET /api/v1/jobs/{id}/download` | Descarga resultado |
+| `cancelJob(jobId)` | `POST /api/v1/jobs/{id}/cancel` | Cancela trabajo |
+| `createJobWebSocket(jobId, onMessage)` | `WS /api/v1/ws/jobs/{id}` | WebSocket en tiempo real |
+| `convertFile(file, input, output, onProgress)` | Múltiple | Flujo completo: create → upload → start |
+
+### Procesamiento de Documentos
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `processDocument(request)` | `POST /api/v1/process/document` | Pipeline de conversión de documentos |
+
+### Procesamiento de Imágenes
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `removeBackground(request)` | `POST /api/v1/process/remove-background` | Remover fondo con IA |
+| `compressImage(request)` | `POST /api/v1/process/compress` | Comprimir imagen |
+| `addWatermark(request)` | `POST /api/v1/process/watermark` | Agregar marca de agua |
+| `processImageFile(file, format, op, params, onProgress)` | Múltiple | Flujo completo con polling |
+
+### Procesamiento de PDF
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `processPdfFile(file, format, op, params, onProgress)` | `POST /api/v1/process/pdf/{op}` | Operaciones PDF |
+| `createUploadedJob(file, input, output)` | Múltiple | Crear job con upload |
+| `queuePdfMergeFromJobs(primaryId, sourceIds)` | `POST /api/v1/process/pdf/merge` | Unir múltiples PDFs |
+
+Operaciones PDF soportadas: `merge`, `split-range`, `extract-pages`, `delete-pages`, `rotate`, `metadata`, `encrypt`, `decrypt`, `add-text`, `add-image`, `draw-rectangle`, `add-annotation`, `set-mediabox`, `compress`, `extract-audio`, `trim`, `normalize`, `sign`
+
+### Procesamiento de Audio
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `processAudio(request)` | `POST /api/v1/process/audio` | Operación de audio |
+| `processAudioFile(file, input, output, params, onProgress)` | Múltiple | Flujo completo con polling |
+
+### Procesamiento de Video
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `processVideo(request)` | `POST /api/v1/process/video` | Operación de video |
+| `processVideoFile(file, input, output, params, onProgress)` | Múltiple | Flujo completo con polling |
+
+### Conversión XML
+
+| Función | Endpoint | Descripción |
+|---------|----------|-------------|
+| `convertXmlToJson(file, options)` | `POST /api/v1/convert/xml/json` | XML → JSON |
+| `convertXmlToYaml(file, options)` | `POST /api/v1/convert/xml/yaml` | XML → YAML |
+| `convertXmlToHtml(file, options)` | `POST /api/v1/convert/xml/html` | XML → HTML |
+| `convertXmlToCsv(file, options)` | `POST /api/v1/convert/xml/csv` | XML → CSV |
+
+### Manejo de Errores
+
+```typescript
+// handleApiError() traduce status codes a mensajes en español:
+// 500 → "Ocurrió un error interno..."
+// 413 → "El archivo es demasiado grande..."
+// 429 → "Has alcanzado el límite de conversiones..."
+// 422 → "El formato del archivo no es válido..."
+
+// sanitizeErrorMessage() elimina paths internos y tracebacks de Python
 ```
 
 ---
 
-#### `getFile(id: string): File | undefined`
+## 🔄 Hooks de Conversión
 
-Recupera un archivo del store.
+### `useConversion(config: ConversionConfig)`
 
-```typescript
-const file = getFile(fileId)
-if (file) {
-  console.log('Archivo encontrado:', file.name)
-}
-```
-
----
-
-#### `removeFile(id: string): void`
-
-Elimina un archivo del store.
+Hook principal para gestionar el ciclo de vida de una conversión.
 
 ```typescript
-removeFile(fileId)
+const {
+  status,           // "idle" | "uploading" | "converting" | "completed" | "error"
+  progress,         // 0-100
+  error,            // string | null
+  result,           // { jobId, outputFormat } | null
+  isConverting,     // boolean
+  startConversion,  // (file: File) => Promise<void>
+  reset,            // () => void
+  downloadFile,     // () => Promise<void>
+  cancel,           // () => void
+} = useConversion(config)
 ```
 
----
+### `useSignatureStore()`
 
-#### `clearAllFiles(): void`
+Gestión de firmas (drawn + text).
 
-Limpia todos los archivos del store.
+### `usePdfSigning()`
 
-```typescript
-clearAllFiles()
-```
-
----
-
-#### `createFilePreviewUrl(file: File): string`
-
-Crea una URL temporal para preview.
-
-```typescript
-const previewUrl = createFilePreviewUrl(file)
-// Usar en <img src={previewUrl} /> o <video src={previewUrl} />
-
-// IMPORTANTE: Revocar cuando ya no se use
-revokeFilePreviewUrl(previewUrl)
-```
-
----
-
-#### `revokeFilePreviewUrl(url: string): void`
-
-Revoca una URL de preview para liberar memoria.
-
-```typescript
-revokeFilePreviewUrl(previewUrl)
-```
-
----
-
-### `/lib/file-actions.ts`
-
-Configuración data-driven de acciones por categoría.
-
-#### `getActionsForCategory(category: FileCategory): Action[]`
-
-Obtiene acciones disponibles para una categoría.
-
-```typescript
-const actions = getActionsForCategory("document")
-// [
-//   { id: "convert", label: "Convertir", icon: FileType },
-//   { id: "compress", label: "Comprimir", icon: Archive },
-//   ...
-// ]
-```
-
-**Tipos:**
-```typescript
-interface Action {
-  id: string
-  label: string
-  icon: LucideIcon
-  description?: string
-}
-```
-
----
-
-#### `getConversionOptions(category: FileCategory): ConversionOption[]`
-
-Obtiene formatos de conversión disponibles.
-
-```typescript
-const options = getConversionOptions("image")
-// [
-//   { value: "jpg", label: "JPG" },
-//   { value: "png", label: "PNG" },
-//   ...
-// ]
-```
-
-**Tipos:**
-```typescript
-interface ConversionOption {
-  value: string
-  label: string
-  description?: string
-}
-```
-
----
-
-## 🔍 Detección de Categorías
-
-### Mapeo de Extensiones
-
-```typescript
-const categoryMap = {
-  // Documentos
-  pdf: "document",
-  doc: "document",
-  docx: "document",
-  odt: "document",
-  txt: "document",
-  md: "document",
-  html: "document",
-  
-  // Imágenes
-  jpg: "image",
-  jpeg: "image",
-  png: "image",
-  gif: "image",
-  webp: "image",
-  svg: "image",
-  bmp: "image",
-  tiff: "image",
-  heic: "image",
-  
-  // Videos
-  mp4: "video",
-  mkv: "video",
-  avi: "video",
-  webm: "video",
-  mov: "video",
-  flv: "video",
-  
-  // Audio
-  mp3: "audio",
-  wav: "audio",
-  flac: "audio",
-  ogg: "audio",
-  aac: "audio",
-  m4a: "audio",
-}
-```
+Flujo completo de firma de PDFs.
 
 ---
 
@@ -248,226 +173,117 @@ const categoryMap = {
 ### FileCategory
 
 ```typescript
-type FileCategory = 
-  | "document" 
-  | "image" 
-  | "video" 
-  | "audio" 
-  | "unknown"
+type FileCategory = "document" | "image" | "video" | "audio" | "unknown"
 ```
-
----
 
 ### FileState
 
 ```typescript
-type FileState = 
-  | "idle"        // Estado inicial
-  | "selected"    // Archivo seleccionado
-  | "uploading"   // Subiendo a servidor
-  | "queued"      // En cola para procesamiento
-  | "processing"  // Procesándose
-  | "completed"   // Completado
-  | "error"       // Error
+type FileState =
+  | "idle" | "selected" | "uploading" | "queued"
+  | "processing" | "completed" | "error"
 ```
-
----
 
 ### FileInfo
 
 ```typescript
 interface FileInfo {
-  id: string              // UUID único
-  name: string            // Nombre del archivo
-  size: number            // Tamaño en bytes
-  type: string            // MIME type
-  extension: string       // Extensión sin punto
-  category: FileCategory  // Categoría detectada
-  file: File              // Archivo original del navegador
-  previewUrl?: string     // URL temporal de preview
-  state: FileState        // Estado actual
-  error?: string          // Mensaje de error si aplica
-  progress?: number       // Progreso 0-100 si aplica
+  id: string
+  name: string
+  size: number
+  type: string
+  extension: string
+  category: FileCategory
+  file: File
+  previewUrl?: string
+  state: FileState
+  error?: string
+  progress?: number
 }
 ```
 
----
-
-### Action
+### ConversionConfig
 
 ```typescript
-interface Action {
-  id: string              // Identificador único
-  label: string           // Texto a mostrar
-  icon: LucideIcon        // Icono del componente
-  description?: string    // Descripción opcional
-  disabled?: boolean      // Si está deshabilitado
+interface ConversionConfig {
+  slug: string
+  label: string
+  description: string
+  sourceExtensions: string[]
+  targetFormat: string
+  category: FileCategory
+  icon: LucideIcon
+  href: string
+  type: ActionType
+  operation: string
 }
 ```
 
----
-
-### ConversionOption
+### ToolConfig
 
 ```typescript
-interface ConversionOption {
-  value: string           // Valor del formato (ej: "pdf")
-  label: string           // Etiqueta (ej: "PDF")
-  description?: string    // Descripción del formato
-  icon?: LucideIcon       // Icono opcional
+interface ToolConfig {
+  slug: string
+  label: string
+  description: string
+  category: FileCategory
+  icon: LucideIcon
+  href: string
+  sourceExtensions?: string[]
+  type: ActionType
+  operation: string
+  outputFormat?: string
+  acceptsMultiple?: boolean
 }
+```
+
+### ActionType
+
+```typescript
+type ActionType =
+  | "convert" | "compress" | "organize" | "sign"
+  | "protect" | "extract" | "trim" | "normalize"
 ```
 
 ---
 
 ## 🔄 Flujos de Trabajo
 
-### Flujo de Carga de Archivo
+### Flujo de Conversión Completo
 
 ```typescript
-// 1. Usuario selecciona/arrastra archivo
+// 1. Usuario selecciona archivo
 const file: File = event.dataTransfer.files[0]
 
-// 2. Crear FileInfo con metadatos
+// 2. Crear FileInfo
 const fileInfo = createFileInfo(file)
-// { id: "uuid", name: "doc.pdf", category: "document", ... }
 
 // 3. Guardar en store
 storeFile(fileInfo.id, file)
 
-// 4. Guardar metadatos en sessionStorage
-sessionStorage.setItem("pendingFile", JSON.stringify({
-  id: fileInfo.id,
-  name: fileInfo.name,
-  size: fileInfo.size,
-  type: fileInfo.type,
-  extension: fileInfo.extension,
-  category: fileInfo.category,
-}))
-
-// 5. Navegar al editor
+// 4. Navegar al editor
 router.push(`/editor?file=${fileInfo.id}`)
+
+// 5. En la página de conversión:
+const { startConversion, status, progress, downloadFile } = useConversion(config)
+
+// 6. Iniciar conversión
+await startConversion(file)
+
+// 7. Esperar completado
+// status cambia: idle → uploading → converting → completed
+
+// 8. Descargar resultado
+await downloadFile()
 ```
 
----
-
-### Flujo de Preview
+### Flujo de Firma de PDF
 
 ```typescript
-// 1. Recuperar info del archivo
-const stored = sessionStorage.getItem("pendingFile")
-const fileInfo = JSON.parse(stored)
-
-// 2. Recuperar archivo del store
-const file = getFile(fileInfo.id)
-
-// 3. Crear URL de preview (solo para media)
-const previewUrl = useMemo(() => {
-  if (!file) return undefined
-  if (["image", "video", "audio"].includes(fileInfo.category)) {
-    return createFilePreviewUrl(file)
-  }
-  return undefined
-}, [file, fileInfo])
-
-// 4. Usar en componente
-<FilePreview previewUrl={previewUrl} />
-
-// 5. Limpiar al desmontar
-useEffect(() => {
-  return () => {
-    if (previewUrl) {
-      revokeFilePreviewUrl(previewUrl)
-    }
-  }
-}, [previewUrl])
-```
-
----
-
-### Flujo de Conversión (Futuro)
-
-```typescript
-// 1. Usuario selecciona formato
-const targetFormat = "pdf"
-
-// 2. Verificar tamaño
-const isLarge = isLargeFile(fileInfo.size)
-
-// 3. Mostrar toast apropiado
-sileo.success({
-  title: "Conversión iniciada",
-  description: isLarge 
-    ? "Archivo grande, puedes continuar usando la app"
-    : `Convirtiendo a ${targetFormat.toUpperCase()}...`
-})
-
-// 4. Procesar según tamaño
-if (isLarge) {
-  // Upload con chunks + procesamiento servidor
-  await uploadAndConvert(file, targetFormat)
-} else {
-  // Procesamiento local con WebAssembly
-  await convertLocally(file, targetFormat)
-}
-
-// 5. Descargar resultado
-downloadResult(convertedFile)
-```
-
----
-
-## 🎯 Best Practices
-
-### Memoria
-- Siempre revocar preview URLs cuando ya no se usen
-- Limpiar archivos del store después de procesar
-- Usar `useMemo` para cálculos derivados costosos
-
-### Performance
-- No crear preview URLs innecesariamente
-- Usar lazy loading para componentes pesados
-- Considerar Web Workers para procesamiento pesado
-
-### Seguridad
-- Validar extensiones antes de procesar
-- Sanitizar nombres de archivo
-- Verificar tamaños máximos
-- No confiar solo en MIME types del cliente
-
-### UX
-- Mostrar progreso para operaciones largas
-- Dar feedback inmediato con toasts
-- Indicar claramente cuando puede continuar usando la app
-- Manejar errores gracefully
-
----
-
-## 🔮 APIs Futuras (Planeadas)
-
-### Conversión Local
-```typescript
-// WebAssembly para procesamiento cliente
-await convertWithFFmpeg(file, "mp4")
-await compressWithSharp(file, { quality: 80 })
-await convertPdfWithPdfLib(file, options)
-```
-
-### Upload Encriptado
-```typescript
-// Upload seguro con chunks
-await uploadLargeFile(file, {
-  chunkSize: 5 * 1024 * 1024, // 5MB
-  encryption: true,
-  onProgress: (progress) => console.log(progress)
-})
-```
-
-### Procesamiento Servidor
-```typescript
-// API endpoint para conversión
-const result = await fetch('/api/convert', {
-  method: 'POST',
-  body: formData
-})
+// 1. Usuario sube PDF
+// 2. Abre overlay de firma
+// 3. Dibuja o selecciona firma de texto
+// 4. Coloca firma en el PDF
+// 5. Envía al backend para aplicar firma
+// 6. Descarga PDF firmado
 ```
