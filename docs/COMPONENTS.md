@@ -164,6 +164,52 @@ interface ActionSidebarProps {
 
 ---
 
+### SupportDialog
+
+#### Ubicación
+`components/support-dialog.tsx`
+
+#### Descripción
+Diálogo de soporte que permite a los usuarios enviar un email con descripción del problema y archivos adjuntos. Incluye validación, feedback visual y rate limiting.
+
+#### Uso
+```tsx
+import { SupportDialog } from "@/components/support-dialog"
+
+<SupportDialog />
+```
+
+#### Features
+- Formulario con email, descripción y hasta 3 archivos adjuntos
+- Validación manual con Zod v4 `safeParse` (sin react-hook-form por incompatibilidad con Zod v4)
+- Banner de éxito (verde) con animación fade-in + slide
+- Banner de error (rojo) con mensaje específico
+- Rate limiting dual:
+  - **Client**: localStorage, 5 emails/24h
+  - **Server**: Map en memoria por IP, 5 emails/24h
+- Warning amarillo cuando quedan ≤2 emails
+- Botón deshabilitado cuando se alcanza el límite
+- Archivos aceptados: PNG, JPG, JPEG, PDF, TXT, CSV, DOC, DOCX (max 5MB cada uno)
+
+#### Server Action
+`app/support/actions.ts` → `sendSupportEmail(formData)`
+
+- Valida schema con Zod
+- Verifica rate limit por IP (`x-forwarded-for`)
+- Procesa archivos adjuntos a base64
+- Envía email vía Resend
+- Retorna `{ ok: boolean, error?: string, remaining?: number }`
+
+#### Estado del Formulario
+Manejo manual con `useState` (no react-hook-form):
+- `email`, `description` → valores del form
+- `fieldErrors` → errores por campo
+- `submitResult` → resultado del envío (success/error)
+- `sending` → estado de carga
+- `remaining` → emails restantes hoy
+
+---
+
 ### Header
 
 #### Ubicación

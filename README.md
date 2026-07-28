@@ -18,8 +18,10 @@
 
 - **Framework**: Next.js 16 (App Router + Turbopack)
 - **UI Components**: shadcn/ui + Radix UI
-- **Styling**: Tailwind CSS
-- **Notifications**: Sileo
+- **Styling**: Tailwind CSS + tw-animate-css
+- **Notifications**: Sonner
+- **Validation**: Zod v4
+- **Email**: Resend
 - **Type Safety**: TypeScript
 - **Package Manager**: pnpm
 - **Backend API**: FastAPI (http://127.0.0.1:8000)
@@ -71,11 +73,13 @@ Los temas se gestionan mediante `next-themes` y CSS variables.
 
 ### Variables de Entorno
 
-La aplicación utiliza variables de entorno para configurar la URL del backend:
+La aplicación utiliza variables de entorno para configurar la URL del backend y el servicio de email:
 
 | Variable              | Descripción              | Valor de Desarrollo     | Valor de Producción                     |
 | --------------------- | ------------------------ | ----------------------- | --------------------------------------- |
 | `NEXT_PUBLIC_API_URL` | URL base del backend API | `http://127.0.0.1:8000` | `https://convert-easy-api.onrender.com` |
+| `RESEND_API_KEY`      | API key de Resend        | _(requerida)_           | _(requerida)_                           |
+| `RESEND_EMAIL`        | Email destino de soporte | _(requerido)_           | _(requerido)_                           |
 
 **Archivos de configuración:**
 
@@ -176,10 +180,16 @@ pnpm lint
 - [x] Drag & drop de archivos
 - [x] Detección automática de tipo de archivo
 - [x] Preview de archivos (imágenes, video, audio)
-- [x] Toasts con Sileo
+- [x] Toasts con Sonner
 - [x] Store en memoria para archivos
 - [x] Sidebar de acciones data-driven
 - [x] Responsive design
+- [x] Soporte de contacto (Support Dialog)
+  - Formulario de soporte con email + descripción + adjuntos
+  - Validación con Zod v4 (sin react-hook-form por incompatibilidad)
+  - Feedback visual inline (banners animados de éxito/error)
+  - Rate limiting: 5 emails/día por IP (server) + localStorage (client)
+  - Envío de emails vía Resend con adjuntos
 
 ### ✅ Conversión de Imágenes (Fase 1)
 
@@ -249,7 +259,7 @@ pnpm lint
 
 ### Toasts
 
-- Usar Sileo para notificaciones
+- Usar Sonner para notificaciones
 - Incluir descripciones claras
 - Para archivos >10MB, indicar que puede continuar usando la app
 

@@ -13,3 +13,7 @@ pnpm-lock.yaml
 bun.lock
 
 .env
+
+next-env.d.ts
+
+tsconfig.tsbuildinfo
