@@ -16,9 +16,10 @@ import {
   Scissors,
   Volume2,
   Film,
+  Binary,
+  Braces,
   type LucideIcon,
-} from "lucide-react";
-import type { FileCategory, FileAction, ConversionOption } from "@/types/file";
+} from "lucide-react";import type { FileCategory, FileAction, ConversionOption } from "@/types/file";
 
 export const FILE_ACTIONS: FileAction[] = [
   // Document actions
@@ -166,6 +167,13 @@ export const FILE_ACTIONS: FileAction[] = [
     label: "Watermark",
     description: "Add watermark",
     icon: Stamp,
+    category: ["image"],
+  },
+  {
+    id: "to-base64",
+    label: "Base64",
+    description: "Encode image to Base64",
+    icon: Binary,
     category: ["image"],
   },
   {

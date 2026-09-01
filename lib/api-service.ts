@@ -860,6 +860,70 @@ export async function processVideoFile(
 // XML CONVERSION OPERATIONS
 // ============================================================================
 
+// ============================================================================
+// BASE64 CONVERSION OPERATIONS (backend fallback; primary is client-side)
+// ============================================================================
+
+/**
+ * Encode an image file to base64 via the backend sync endpoint.
+ * Primary flow is client-side (FileReader); this is the API fallback.
+ */
+export async function imageToBase64Backend(
+  file: File
+): Promise<{ base64: string; data_uri: string; mime: string; filename: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/convert/image/to-base64`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al codificar la imagen a Base64");
+  }
+
+  return response.json();
+}
+
+/**
+ * Decode base64 (string or Data URI) into an image file via the backend sync
+ * endpoint. Returns the raw bytes as a Blob, ready to download.
+ */
+export async function base64ToImageBackend(
+  data: string,
+  mime?: string,
+  filename?: string
+): Promise<{ blob: Blob; filename: string }> {
+  const formData = new FormData();
+  formData.append("data", data);
+  if (mime) formData.append("mime", mime);
+  if (filename) formData.append("filename", filename);
+
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/convert/base64/to-image`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al decodificar el Base64 a imagen");
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition");
+  const resolvedName = contentDisposition
+    ? contentDisposition.split("filename=")[1]?.replace(/"/g, "") ||
+      "output.png"
+    : "output.png";
+
+  return { blob: await response.blob(), filename: resolvedName };
+}
+
 /**
  * Convert XML to JSON
  */

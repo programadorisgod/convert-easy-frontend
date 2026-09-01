@@ -107,6 +107,18 @@ export const NAV_CATEGORIES: NavCategory[] = [
         description: "Combine one or more images into a single PDF",
         icon: Image,
       },
+      {
+        label: "Image to Base64",
+        href: "/tools/image-to-base64",
+        description: "Encode an image into a Base64 string",
+        icon: Image,
+      },
+      {
+        label: "Base64 to Image",
+        href: "/tools/base64-to-image",
+        description: "Decode a Base64 string back into an image",
+        icon: Image,
+      },
     ],
   },
   {

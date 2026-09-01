@@ -9,6 +9,8 @@ import {
   Loader2,
   X,
   GripVertical,
+  Copy,
+  Check,
 } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -52,6 +54,11 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ImageCropDialog } from "@/components/editor/image-crop-dialog";
+import {
+  fileToBase64,
+  copyToClipboard,
+  downloadText,
+} from "@/lib/base64-utils";
 import type {
   FileCategory,
   ConversionOption,
@@ -137,6 +144,12 @@ export function ActionSidebar({
   );
   const [isPreparingMerge, setIsPreparingMerge] = useState(false);
   const [showImagesToPdfDialog, setShowImagesToPdfDialog] = useState(false);
+
+  // Base64 encode dialog state
+  const [showBase64Dialog, setShowBase64Dialog] = useState(false);
+  const [base64Result, setBase64Result] = useState<string | null>(null);
+  const [isEncodingBase64, setIsEncodingBase64] = useState(false);
+  const [base64Copied, setBase64Copied] = useState(false);
   const [imagesToPdfFiles, setImagesToPdfFiles] = useState<MergeSourceFile[]>(
     [],
   );
@@ -680,8 +693,75 @@ export function ActionSidebar({
     }
   };
 
+  const handleToBase64 = async () => {
+    const file = getFile(fileId);
+    if (!file) {
+      sileo.error({
+        title: "Archivo no encontrado",
+        description: "No se pudo encontrar la imagen en memoria.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4000,
+      });
+      return;
+    }
+
+    setIsEncodingBase64(true);
+    setBase64Result(null);
+    setBase64Copied(false);
+    setShowBase64Dialog(true);
+
+    try {
+      const dataUri = await fileToBase64(file);
+      setBase64Result(dataUri);
+
+      sileo.success({
+        title: "Imagen codificada",
+        description: "Copiá o descargá el Base64 desde el diálogo.",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 3000,
+      });
+
+      onActionSelect?.("to-base64");
+    } catch (error) {
+      console.error("Base64 encode error:", error);
+      sileo.error({
+        title: "Error al codificar",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo codificar la imagen a Base64.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 5000,
+      });
+      setShowBase64Dialog(false);
+    } finally {
+      setIsEncodingBase64(false);
+    }
+  };
+
+  const handleCopyBase64 = async () => {
+    if (!base64Result) return;
+    await copyToClipboard(base64Result);
+    setBase64Copied(true);
+    setTimeout(() => setBase64Copied(false), 2000);
+  };
+
+  const handleDownloadBase64 = () => {
+    if (!base64Result) return;
+    const base = fileName.split(".").slice(0, -1).join(".") || "image";
+    downloadText(base64Result, `${base}.txt`);
+  };
+
   const handleActionClick = (actionId: string) => {
     setSelectedAction(actionId);
+
+    if (actionId === "to-base64") {
+      void handleToBase64();
+      return;
+    }
 
     if (actionId === "convert") {
       setShowConvertDialog(true);
@@ -2344,6 +2424,66 @@ export function ActionSidebar({
           onApply={handleCropApply}
         />
       )}
+
+      {/* Base64 Dialog */}
+      <Dialog open={showBase64Dialog} onOpenChange={setShowBase64Dialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Imagen a Base64</DialogTitle>
+            <DialogDescription>
+              Tu imagen codificada en Base64 (Data URI). Copiala o descargala
+              como archivo .txt.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-4">
+            {isEncodingBase64 ? (
+              <div className="flex h-32 items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Codificando imagen...
+              </div>
+            ) : (
+              <>
+                <textarea
+                  readOnly
+                  value={base64Result ?? ""}
+                  rows={6}
+                  className="w-full resize-none rounded-md border bg-muted/40 p-3 font-mono text-xs text-foreground"
+                  placeholder="El Base64 aparecerá acá..."
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCopyBase64}
+                    disabled={!base64Result}
+                    className="flex-1 gap-2"
+                  >
+                    {base64Copied ? (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Copiado
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        Copiar
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleDownloadBase64}
+                    disabled={!base64Result}
+                    className="flex-1 gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Descargar .txt
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Compress Dialog */}
       <Dialog open={showCompressDialog} onOpenChange={setShowCompressDialog}>
