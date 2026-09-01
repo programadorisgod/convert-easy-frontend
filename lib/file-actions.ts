@@ -414,8 +414,7 @@ const SPREADSHEET_CONVERSION_OPTIONS: ConversionOption[] = [
   },
 ];
 
-const PDF_CONVERSION_OPTIONS: ConversionOption[] =
-  CONVERSION_OPTIONS.document.filter((option) => option.extension !== "md");
+const PDF_CONVERSION_OPTIONS: ConversionOption[] = CONVERSION_OPTIONS.document;
 
 const XML_CONVERSION_OPTIONS: ConversionOption[] = [
   {
