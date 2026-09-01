@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Shield, ChevronDown } from "lucide-react";
+import { Menu, Shield, ChevronDown, Github, Code2, Monitor } from "lucide-react";
 import { useState, useRef } from "react";
 
 import { cn } from "@/lib/utils";
@@ -9,6 +9,12 @@ import { NAV_CATEGORIES, type NavCategory } from "@/lib/nav-config";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SupportDialog } from "@/components/support-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -147,6 +153,37 @@ export function Header() {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="GitHub repos">
+                <Github className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <a
+                  href="https://github.com/programadorisgod/convert-easy-frontend"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <Monitor className="h-4 w-4" />
+                  Frontend
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a
+                  href="https://github.com/programadorisgod/convert-easy-api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <Code2 className="h-4 w-4" />
+                  Backend
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <SupportDialog />
           <ThemeToggle />
 
