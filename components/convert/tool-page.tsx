@@ -14,6 +14,8 @@ import {
   Sparkles,
   Download,
   ArrowLeft,
+  GripVertical,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -21,7 +23,7 @@ import { formatFileSize } from "@/lib/file-utils";
 import { createFilePreviewUrl } from "@/lib/file-store";
 import type { ToolConfig } from "@/lib/conversion-config";
 import type { FileCategory } from "@/types/file";
-import { executeAction, type ActionResult, cancelAction } from "../convert/action-executor";
+import { executeAction, executeImagesToPdf, type ActionResult, cancelAction } from "../convert/action-executor";
 import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
 import { VideoOptions, type VideoParams } from "@/components/video/video-options";
 import { sileo } from "sileo";
@@ -31,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { PdfSignPage } from "@/components/pdf-sign/pdf-sign-page";
 
 interface FilePreview {
+  id: string;
   name: string;
   size: number;
   extension: string;
@@ -60,6 +63,10 @@ interface ToolPageProps {
 
 export function ToolPage({ config }: ToolPageProps) {
   const [file, setFile] = useState<FilePreview | null>(null);
+  const [images, setImages] = useState<FilePreview[]>([]);
+  const [isImagePdfReady, setIsImagePdfReady] = useState(false);
+  const [draggingImageId, setDraggingImageId] = useState<string | null>(null);
+  const [isDraggingOverImage, setIsDraggingOverImage] = useState(false);
   const [status, setStatus] = useState<WorkflowStatus>("idle");
   const [stage, setStage] = useState<string>("uploading");
   const [progress, setProgress] = useState(0);
@@ -102,12 +109,37 @@ export function ToolPage({ config }: ToolPageProps) {
   );
 
   const handleFileSelect = useCallback(
-    (selectedFile: File) => {
-      const extension = selectedFile.name.split(".").pop()?.toLowerCase() || "";
+    (selectedFiles: File[]) => {
+      if (config.operation === "image-to-pdf") {
+        const previews: FilePreview[] = selectedFiles.map((selectedFile) => {
+          const extension =
+            selectedFile.name.split(".").pop()?.toLowerCase() || "";
+          const category = getCategoryFromExtension(extension);
+          return {
+            id: crypto.randomUUID(),
+            name: selectedFile.name,
+            size: selectedFile.size,
+            extension,
+            category,
+            file: selectedFile,
+            previewUrl: createFilePreviewUrl(selectedFile),
+          };
+        });
+        setImages((prev) => [...prev, ...previews]);
+        setInvalidFile(null);
+        setIsImagePdfReady(true);
+        setStatus("file-selected");
+        return;
+      }
+
+      const selectedFile = selectedFiles[0];
+      const extension =
+        selectedFile.name.split(".").pop()?.toLowerCase() || "";
       const category = getCategoryFromExtension(extension);
       const previewUrl = createFilePreviewUrl(selectedFile);
 
       setFile({
+        id: crypto.randomUUID(),
         name: selectedFile.name,
         size: selectedFile.size,
         extension,
@@ -118,7 +150,7 @@ export function ToolPage({ config }: ToolPageProps) {
       setInvalidFile(null);
       setStatus("file-selected");
     },
-    []
+    [config.operation]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -143,8 +175,20 @@ export function ToolPage({ config }: ToolPageProps) {
       const files = e.dataTransfer?.files;
       if (files && files.length > 0) {
         const droppedFile = files[0];
+        if (config.operation === "image-to-pdf") {
+          const validFiles = Array.from(files).filter(isValidFile);
+          if (validFiles.length > 0) {
+            handleFileSelect(validFiles);
+          } else {
+            const ext = "." + droppedFile.name.split(".").pop()?.toLowerCase();
+            setInvalidFile(
+              `Invalid file: ${ext}. Accepted: ${config.sourceExtensions?.join(", ") || "any"}`
+            );
+          }
+          return;
+        }
         if (isValidFile(droppedFile)) {
-          handleFileSelect(droppedFile);
+          handleFileSelect([droppedFile]);
         } else {
           const ext = "." + droppedFile.name.split(".").pop()?.toLowerCase();
           setInvalidFile(
@@ -153,7 +197,7 @@ export function ToolPage({ config }: ToolPageProps) {
         }
       }
     },
-    [isValidFile, handleFileSelect, config.sourceExtensions]
+    [isValidFile, handleFileSelect, config.sourceExtensions, config.operation]
   );
 
   const handleClick = () => {
@@ -163,9 +207,23 @@ export function ToolPage({ config }: ToolPageProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const selectedFile = files[0];
+      const fileList = Array.from(files);
+      if (config.operation === "image-to-pdf") {
+        const validFiles = fileList.filter(isValidFile);
+        if (validFiles.length > 0) {
+          handleFileSelect(validFiles);
+        } else {
+          const ext = "." + fileList[0].name.split(".").pop()?.toLowerCase();
+          setInvalidFile(
+            `Invalid file: ${ext}. Accepted: ${config.sourceExtensions?.join(", ") || "any"}`
+          );
+        }
+        e.target.value = "";
+        return;
+      }
+      const selectedFile = fileList[0];
       if (isValidFile(selectedFile)) {
-        handleFileSelect(selectedFile);
+        handleFileSelect([selectedFile]);
       } else {
         const ext = "." + selectedFile.name.split(".").pop()?.toLowerCase();
         setInvalidFile(
@@ -176,9 +234,66 @@ export function ToolPage({ config }: ToolPageProps) {
     e.target.value = "";
   };
 
+  const reorderImagesPdf = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    setImages((prev) => {
+      const fromIndex = prev.findIndex((item) => item.id === fromId);
+      const toIndex = prev.findIndex((item) => item.id === toId);
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const removeImagePdf = (id: string) => {
+    setImages((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      if (next.length === 0) {
+        setStatus("idle");
+        setIsImagePdfReady(false);
+      }
+      return next;
+    });
+  };
+
   const TRIM_START_RE = /^\d{1,2}:\d{2}:\d{2}$/;
 
   const handleExecute = async () => {
+    if (config.operation === "image-to-pdf") {
+      if (images.length === 0) return;
+      setStatus("processing");
+      setStage("uploading");
+      setProgress(0);
+      setError(null);
+      try {
+        const actionResult = await executeImagesToPdf(
+          images.map((img) => img.file),
+          (newStage, newProgress) => {
+            setStage(newStage);
+            setProgress(newProgress);
+          },
+        );
+        setResult(actionResult);
+        setStatus("completed");
+        triggerDownload(actionResult);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Error desconocido";
+        setError(errorMessage);
+        setStatus("failed");
+        sileo.error({
+          title: "Error",
+          description: errorMessage,
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+      }
+      return;
+    }
+
     if (!file) return;
 
     const isAudioTrim = config.type === "trim" && file.category === "audio";
@@ -265,6 +380,10 @@ export function ToolPage({ config }: ToolPageProps) {
     if (file?.previewUrl) {
       URL.revokeObjectURL(file.previewUrl);
     }
+    images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    setImages([]);
+    setIsImagePdfReady(false);
+    setDraggingImageId(null);
     setFile(null);
     setStatus("idle");
     setResult(null);
@@ -368,7 +487,91 @@ export function ToolPage({ config }: ToolPageProps) {
     </div>
   );
 
-  const renderFileSelected = () => (
+  const renderFileSelected = () => {
+    if (config.operation === "image-to-pdf") {
+      return (
+        <div className="flex flex-col items-center rounded-xl border bg-card p-6">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <CategoryIcon className="h-10 w-10 text-primary" />
+          </div>
+          <h3 className="mb-1 text-xl font-semibold">Armar PDF</h3>
+          <p className="mb-4 text-center text-sm text-muted-foreground">
+            Cada imagen será una página. Arrastrá para cambiar el orden.
+          </p>
+
+          <div className="mb-4 w-full max-w-md space-y-2">
+            {images.map((img, index) => (
+              <div
+                key={img.id}
+                draggable
+                onDragStart={() => setDraggingImageId(img.id)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingOverImage(true);
+                }}
+                onDragLeave={() => setIsDraggingOverImage(false)}
+                onDrop={() => {
+                  setIsDraggingOverImage(false);
+                  if (draggingImageId) {
+                    reorderImagesPdf(draggingImageId, img.id);
+                    setDraggingImageId(null);
+                  }
+                }}
+                onDragEnd={() => setDraggingImageId(null)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md border px-3 py-2",
+                  draggingImageId === img.id
+                    ? "border-primary bg-primary/5"
+                    : "bg-card",
+                )}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                <span className="w-6 shrink-0 text-xs text-muted-foreground">
+                  {index + 1}.
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {img.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatFileSize(img.size)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Remove ${img.name}`}
+                  onClick={() => removeImagePdf(img.id)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button variant="outline" onClick={handleClick} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Agregar imágenes
+            </Button>
+            <Button variant="outline" onClick={handleReset} className="gap-2">
+              <X className="h-4 w-4" />
+              Quitar todas
+            </Button>
+            <Button
+              onClick={handleExecute}
+              disabled={images.length === 0}
+              className="gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              Generar PDF
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
     <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-12">
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
         <CategoryIcon className="h-10 w-10 text-primary" />
@@ -455,6 +658,7 @@ export function ToolPage({ config }: ToolPageProps) {
       </div>
     </div>
   );
+  };
 
   const renderProcessing = () => (
     <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-12">
@@ -640,6 +844,7 @@ export function ToolPage({ config }: ToolPageProps) {
           onChange={handleInputChange}
           className="sr-only"
           accept={acceptedExtensions}
+          multiple={config.operation === "image-to-pdf"}
         />
 
         {invalidFile && (

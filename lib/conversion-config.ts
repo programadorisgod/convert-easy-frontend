@@ -285,6 +285,19 @@ export const TOOL_CONFIGS: Record<string, ToolConfig> = {
     operation: "normalize",
     outputFormat: "mp3",
   },
+  "image-to-pdf": {
+    slug: "image-to-pdf",
+    label: "Image to PDF",
+    description: "Combine one or more images into a single PDF",
+    category: "image",
+    icon: Layers,
+    href: "/tools/image-to-pdf",
+    sourceExtensions: [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"],
+    type: "convert",
+    operation: "image-to-pdf",
+    outputFormat: "pdf",
+    acceptsMultiple: true,
+  },
 };
 
 export function getConversionConfig(slug: string): ConversionConfig | undefined {

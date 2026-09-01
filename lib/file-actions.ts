@@ -314,6 +314,12 @@ export const CONVERSION_OPTIONS: Record<FileCategory, ConversionOption[]> = {
       extension: "gif",
       description: "Animated images",
     },
+    {
+      id: "pdf",
+      label: "PDF",
+      extension: "pdf",
+      description: "Combine into a PDF (each image is a page)",
+    },
   ],
   video: [
     {

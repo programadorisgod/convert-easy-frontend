@@ -681,9 +681,67 @@ export async function queuePdfMergeFromJobs(
   return payload.job_id
 }
 
-// ============================================================================
-// AUDIO PROCESSING OPERATIONS
-// ============================================================================
+/**
+ * Queue an image-to-PDF conversion using pre-uploaded image job IDs in the
+ * desired page order. The first job ID becomes page 1, the rest follow in order.
+ */
+export async function queueImagesToPdfFromJobs(
+  primaryJobId: string,
+  sourceJobIds: string[],
+): Promise<string> {
+  const response = await fetch(
+    `${API_BASE_URL}${API_V1_PREFIX}/process/image/to-pdf`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        job_id: primaryJobId,
+        source_job_ids: sourceJobIds,
+      }),
+    },
+  )
+
+  if (!response.ok) {
+    await handleApiError(response, "Error al encolar la conversión a PDF")
+  }
+
+  const payload = (await response.json()) as PdfProcessResponse
+  return payload.job_id
+}
+
+/**
+ * Create upload jobs for every image, then queue them into a single PDF.
+ * The first file becomes page 1, the rest follow in the given order.
+ */
+export async function processImagesToPdf(
+  files: File[],
+  onProgress?: (
+    stage: "uploading" | "processing",
+    progress: number,
+  ) => void,
+): Promise<string> {
+  if (files.length === 0) {
+    throw new Error("Se necesita al menos una imagen")
+  }
+
+  // Resolve input format from file extension (e.g. "img.png" -> "png").
+  const inputFormat = (files[0].name.split(".").pop() || "").toLowerCase()
+
+  const jobIds: string[] = []
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    const format = (file.name.split(".").pop() || "").toLowerCase() || inputFormat
+    onProgress?.("uploading", Math.round((i / files.length) * 100))
+    const jobId = await createUploadedJob(file, format, format)
+    jobIds.push(jobId)
+  }
+
+  const [primary, ...sources] = jobIds
+  onProgress?.("processing", 0)
+  return queueImagesToPdfFromJobs(primary, sources)
+}
 
 /**
  * Process audio conversion/trim/normalize via dedicated audio endpoint.

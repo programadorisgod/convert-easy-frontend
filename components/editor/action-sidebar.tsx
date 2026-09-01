@@ -28,6 +28,7 @@ import {
   processPdfFile,
   createUploadedJob,
   queuePdfMergeFromJobs,
+  processImagesToPdf,
   convertXmlToJson,
   convertXmlToYaml,
   convertXmlToHtml,
@@ -135,6 +136,14 @@ export function ActionSidebar({
     null,
   );
   const [isPreparingMerge, setIsPreparingMerge] = useState(false);
+  const [showImagesToPdfDialog, setShowImagesToPdfDialog] = useState(false);
+  const [imagesToPdfFiles, setImagesToPdfFiles] = useState<MergeSourceFile[]>(
+    [],
+  );
+  const [draggingImagesToPdfId, setDraggingImagesToPdfId] = useState<
+    string | null
+  >(null);
+  const [isPreparingImagesToPdf, setIsPreparingImagesToPdf] = useState(false);
 
   // Conversion state (shared by all operations: convert, compress, remove-bg, etc.)
   const [isConverting, setIsConverting] = useState(false);
@@ -403,6 +412,168 @@ export function ActionSidebar({
       });
     } finally {
       setIsPreparingMerge(false);
+    }
+  };
+
+  const selectImageFiles = (): Promise<File[]> =>
+    new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.multiple = true;
+
+      input.onchange = () => {
+        const files = Array.from(input.files ?? []);
+        resolve(files);
+      };
+
+      input.click();
+    });
+
+  // Image -> PDF: current image is page 1, extra images are added pages.
+  const startImagesToPdf = () => {
+    if (!currentFile) {
+      sileo.error({
+        title: "File not found",
+        description: "Could not find the current image in memory.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 4500,
+      });
+      return;
+    }
+
+    // Open the dialog with the current image already as page 1. The user
+    // decides whether to add more images via "+ Agregar imágenes" or just
+    // generate the PDF directly. Do NOT auto-open the file picker.
+    setImagesToPdfFiles([
+      {
+        id: crypto.randomUUID(),
+        file: currentFile,
+        isCurrent: true,
+      },
+    ]);
+    setShowImagesToPdfDialog(true);
+  };
+
+  const addMoreImages = async () => {
+    const selectedFiles = await selectImageFiles();
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    setImagesToPdfFiles((prev) => [
+      ...prev,
+      ...selectedFiles.map((file) => ({ id: crypto.randomUUID(), file })),
+    ]);
+  };
+
+  const removeImage = (id: string) => {
+    setImagesToPdfFiles((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const reorderImagesToPdf = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+
+    setImagesToPdfFiles((prev) => {
+      const fromIndex = prev.findIndex((item) => item.id === fromId);
+      const toIndex = prev.findIndex((item) => item.id === toId);
+
+      if (fromIndex < 0 || toIndex < 0) {
+        return prev;
+      }
+
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  };
+
+  const handleConfirmImagesToPdf = async () => {
+    if (imagesToPdfFiles.length === 0 || isPreparingImagesToPdf) {
+      return;
+    }
+
+    try {
+      setIsPreparingImagesToPdf(true);
+
+      sileo.info({
+        title: "Armando PDF",
+        description: "Subiendo imágenes y generando el PDF...",
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 3500,
+      });
+
+      const orderedFiles = imagesToPdfFiles.map(
+        (source) => source.file,
+      );
+      const jobId = await processImagesToPdf(orderedFiles);
+
+      setShowImagesToPdfDialog(false);
+      setImagesToPdfFiles([]);
+      setDraggingImagesToPdfId(null);
+      addBgJob(jobId, "Imagen a PDF");
+
+      const finalStatus = await pollJobStatus(jobId, (status) => {
+        if (status.status === "failed") updateBgJob(jobId, "failed");
+      });
+
+      if (finalStatus.status === "completed") {
+        updateBgJob(jobId, "downloading");
+        const fileBaseName =
+          fileName.split(".").slice(0, -1).join(".") || fileName;
+        const newFileName = `${fileBaseName}.pdf`;
+
+        sileo.success({
+          title: "¡PDF listo!",
+          description: "El archivo se descargará automáticamente.",
+          icon: <Sparkles className="size-3.5" />,
+          roundness: 16,
+          duration: 5000,
+        });
+
+        const blob = await downloadResult(jobId, "pdf");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = newFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        removeBgJob(jobId);
+        setDownloadUrl(url);
+        setCurrentJobId(jobId);
+        setConversionStatus("completed");
+        setSelectedFormat("pdf");
+        setConvertedFileName(newFileName);
+        onConversionComplete?.(newFileName);
+      } else if (finalStatus.status === "failed") {
+        sileo.error({
+          title: "Error al generar el PDF",
+          description:
+            finalStatus.error_message || "No se pudo armar el PDF.",
+          icon: <AlertCircle className="size-3.5" />,
+          roundness: 16,
+          duration: 6000,
+        });
+        removeBgJob(jobId);
+      }
+    } catch (error) {
+      sileo.error({
+        title: "Error al generar el PDF",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudieron subir las imágenes.",
+        icon: <AlertCircle className="size-3.5" />,
+        roundness: 16,
+        duration: 6000,
+      });
+    } finally {
+      setIsPreparingImagesToPdf(false);
     }
   };
 
@@ -832,6 +1003,13 @@ export function ActionSidebar({
     }
 
     // Continue with regular conversion (non-XML)
+    // Image -> PDF combines the current image plus additional images into one PDF.
+    if (category === "image" && selectedFormat.toLowerCase() === "pdf") {
+      setShowConvertDialog(false);
+      startImagesToPdf();
+      return;
+    }
+
     const useDocumentEndpoint = category === "document";
 
     setShowConvertDialog(false);
@@ -2045,6 +2223,113 @@ export function ActionSidebar({
                 </>
               ) : (
                 "Merge in this order"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showImagesToPdfDialog}
+        onOpenChange={(open) => {
+          if (isPreparingImagesToPdf) return;
+          setShowImagesToPdfDialog(open);
+          if (!open) {
+            setDraggingImagesToPdfId(null);
+            setImagesToPdfFiles([]);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Armar PDF</DialogTitle>
+            <DialogDescription>
+              Cada imagen será una página. Arrastrá para ordenarlas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-fit"
+            disabled={isPreparingImagesToPdf}
+            onClick={addMoreImages}
+          >
+            + Agregar imágenes
+          </Button>
+
+          <div className="mt-2 space-y-2 max-h-72 overflow-auto pr-1">
+            {imagesToPdfFiles.map((source, index) => (
+              <div
+                key={source.id}
+                draggable={!isPreparingImagesToPdf}
+                onDragStart={() => setDraggingImagesToPdfId(source.id)}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                }}
+                onDrop={() => {
+                  if (!draggingImagesToPdfId) return;
+                  reorderImagesToPdf(draggingImagesToPdfId, source.id);
+                }}
+                onDragEnd={() => setDraggingImagesToPdfId(null)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md border px-3 py-2",
+                  draggingImagesToPdfId === source.id
+                    ? "border-primary bg-primary/5"
+                    : "bg-card",
+                )}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground w-6 shrink-0">
+                  {index + 1}.
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {source.file.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(source.file.size / (1024 * 1024)).toFixed(2)} MB
+                    {source.isCurrent ? " • Archivo actual" : ""}
+                  </p>
+                </div>
+                {!source.isCurrent && (
+                  <button
+                    type="button"
+                    aria-label={`Remove ${source.file.name}`}
+                    disabled={isPreparingImagesToPdf}
+                    onClick={() => removeImage(source.id)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={isPreparingImagesToPdf}
+              onClick={() => {
+                setShowImagesToPdfDialog(false);
+                setDraggingImagesToPdfId(null);
+                setImagesToPdfFiles([]);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmImagesToPdf}
+              disabled={isPreparingImagesToPdf || imagesToPdfFiles.length === 0}
+            >
+              {isPreparingImagesToPdf ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                "Generar PDF"
               )}
             </Button>
           </div>

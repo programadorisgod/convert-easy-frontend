@@ -9,6 +9,7 @@ import {
   Archive,
   Scissors,
   Volume2,
+  Image,
   type LucideIcon,
 } from "lucide-react"
 
@@ -93,6 +94,19 @@ export const NAV_CATEGORIES: NavCategory[] = [
       //   description: "Reduce PDF file size",
       //   icon: Archive,
       // },
+    ],
+  },
+  {
+    id: "image",
+    label: "Image Tools",
+    icon: Image,
+    items: [
+      {
+        label: "Image to PDF",
+        href: "/tools/image-to-pdf",
+        description: "Combine one or more images into a single PDF",
+        icon: Image,
+      },
     ],
   },
   {

@@ -8,6 +8,7 @@ import {
   processVideoFile,
   createUploadedJob,
   queuePdfMergeFromJobs,
+  processImagesToPdf,
   pollJobStatus,
   downloadResult,
   cancelJob,
@@ -87,6 +88,40 @@ export async function executeAction({
     audioParams,
     videoParams,
   });
+}
+
+/**
+ * Combine multiple images into a single PDF. Each image becomes one page,
+ * in the order given. Prime for /tools/image-to-pdf.
+ */
+export async function executeImagesToPdf(
+  files: File[],
+  onProgress?: (stage: string, progress: number) => void,
+): Promise<ActionResult> {
+  if (files.length === 0) {
+    throw new Error("Seleccioná al menos una imagen");
+  }
+
+  const jobId = await processImagesToPdf(files, (stage, progress) =>
+    onProgress?.(stage, progress),
+  );
+
+  const finalStatus = await pollJobStatus(jobId, (status) => {
+    if (status.status === "failed") {
+      throw new Error(status.error_message || "La conversión a PDF falló");
+    }
+  });
+
+  if (finalStatus.status !== "completed") {
+    throw new Error(finalStatus.error_message || "La conversión a PDF no se completó");
+  }
+
+  const blob = await downloadResult(jobId, "pdf");
+  const fileBaseName =
+    files[0].name.split(".").slice(0, -1).join(".") || files[0].name;
+  const filename = `${fileBaseName}.pdf`;
+
+  return { blob, filename, jobId };
 }
 
 interface ExecuteConversionOptions {
