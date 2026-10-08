@@ -1222,16 +1222,26 @@ export function ActionSidebar({
       });
 
       // Start conversion (upload + trigger)
-      const jobId = await convertFile(
-        file,
-        inputFormat,
-        [selectedFormat],
-        () => {}, // No progress callback for large files
-        {
-          useDocumentEndpoint,
-          preferredDocumentEngine: "auto",
-        },
-      );
+      let jobId: string;
+      if (category === "video") {
+        jobId = await processVideoFile(
+          file,
+          inputFormat,
+          selectedFormat,
+          videoParams as Record<string, unknown> | undefined,
+        );
+      } else {
+        jobId = await convertFile(
+          file,
+          inputFormat,
+          [selectedFormat],
+          () => {}, // No progress callback for large files
+          {
+            useDocumentEndpoint,
+            preferredDocumentEngine: "auto",
+          },
+        );
+      }
 
       const outputFormat = selectedFormat;
       addBgJob(jobId, `Convertir a ${outputFormat.toUpperCase()}`);
