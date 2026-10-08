@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/file-utils";
 import { createFilePreviewUrl } from "@/lib/file-store";
 import { getConversionOptions } from "@/lib/file-actions";
-import type { ConversionConfig } from "@/lib/conversion-config";
+import { getConversionConfig, type ConversionConfig } from "@/lib/conversion-config";
 import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
 import { VideoOptions, type VideoParams } from "@/components/video/video-options";
 import type { FileCategory } from "@/types/file";
@@ -59,10 +59,12 @@ const CATEGORY_ICONS: Record<FileCategory, React.ComponentType<{ className?: str
 };
 
 interface ConversionPageProps {
-  config: ConversionConfig;
+  slug: string;
 }
 
-export function ConversionPage({ config }: ConversionPageProps) {
+export function ConversionPage({ slug }: ConversionPageProps) {
+  const config = getConversionConfig(slug);
+  if (!config) return null;
   const [file, setFile] = useState<FilePreview | null>(null);
   const [status, setStatus] = useState<WorkflowStatus>("idle");
   const [stage, setStage] = useState<string>("uploading");

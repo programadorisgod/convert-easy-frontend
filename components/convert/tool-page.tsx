@@ -21,7 +21,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/file-utils";
 import { createFilePreviewUrl } from "@/lib/file-store";
-import type { ToolConfig } from "@/lib/conversion-config";
+import { getToolConfig, type ToolConfig } from "@/lib/conversion-config";
 import type { FileCategory } from "@/types/file";
 import { executeAction, executeImagesToPdf, type ActionResult, cancelAction } from "../convert/action-executor";
 import { AudioOptions, type AudioParams } from "@/components/audio/audio-options";
@@ -58,10 +58,12 @@ const CATEGORY_ICONS: Record<FileCategory, React.ComponentType<{ className?: str
 };
 
 interface ToolPageProps {
-  config: ToolConfig;
+  slug: string;
 }
 
-export function ToolPage({ config }: ToolPageProps) {
+export function ToolPage({ slug }: ToolPageProps) {
+  const config = getToolConfig(slug);
+  if (!config) return null;
   const [file, setFile] = useState<FilePreview | null>(null);
   const [images, setImages] = useState<FilePreview[]>([]);
   const [isImagePdfReady, setIsImagePdfReady] = useState(false);
