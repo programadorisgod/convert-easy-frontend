@@ -30,7 +30,19 @@ import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PdfSignPage } from "@/components/pdf-sign/pdf-sign-page";
+import dynamic from "next/dynamic";
+
+const PdfSignPage = dynamic(
+  () => import("@/components/pdf-sign/pdf-sign-page").then((m) => m.PdfSignPage),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  }
+);
 
 interface FilePreview {
   id: string;

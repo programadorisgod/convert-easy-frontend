@@ -5,6 +5,7 @@ import { Crop, Image as ImageIcon, UserRound } from "lucide-react";
 import AvatarEditor from "react-avatar-editor";
 import { Cropper, RectangleStencil } from "react-advanced-cropper";
 import type { CropperRef } from "react-advanced-cropper";
+import "react-advanced-cropper/dist/style.css";
 import { sileo } from "sileo";
 
 import { createCroppedImageFile } from "@/lib/image-crop";

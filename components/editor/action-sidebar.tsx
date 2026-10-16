@@ -53,7 +53,13 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ImageCropDialog } from "@/components/editor/image-crop-dialog";
+import dynamic from "next/dynamic";
+
+const ImageCropDialog = dynamic(
+  () => import("@/components/editor/image-crop-dialog").then((m) => m.ImageCropDialog),
+  { ssr: false }
+);
+
 import {
   fileToBase64,
   copyToClipboard,

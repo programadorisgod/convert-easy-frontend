@@ -8,7 +8,19 @@ import { cn } from "@/lib/utils";
 import { NAV_CATEGORIES, type NavCategory } from "@/lib/nav-config";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SupportDialog } from "@/components/support-dialog";
+import dynamic from "next/dynamic";
+
+const SupportDialog = dynamic(
+  () => import("@/components/support-dialog").then((m) => m.SupportDialog),
+  {
+    ssr: false,
+    loading: () => (
+      <Button variant="ghost" size="sm" className="gap-1.5 text-sm">
+        Support
+      </Button>
+    ),
+  }
+);
 import {
   DropdownMenu,
   DropdownMenuContent,

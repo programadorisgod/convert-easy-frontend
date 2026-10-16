@@ -21,7 +21,7 @@ const DocViewerWithRenderers = dynamic(
 );
 
 const MarkdownPreview = dynamic(
-  () => import("@uiw/react-markdown-preview").then((module) => module.default),
+  () => import("./markdown-preview-wrapper"),
   {
     ssr: false,
   },
