@@ -40,18 +40,24 @@ async function handleApiError(response: Response, defaultMessage: string): Promi
 
   // Try to get error details from response
   let errorDetail = ""
+  let requestId = response.headers.get("X-Request-ID") || ""
   try {
     const errorData = await response.json()
     errorDetail = errorData.detail || errorData.message || ""
+    if (errorData.request_id) {
+      requestId = errorData.request_id
+    }
   } catch {
     // If JSON parsing fails, use status text
     errorDetail = response.statusText
   }
 
+  const refSuffix = requestId ? ` (Ref: ${requestId})` : ""
+
   // Custom messages based on status code
   if (status === 500) {
     throw new Error(
-      "Ocurrió un error al procesar tu archivo. Por favor, intenta nuevamente más tarde o contacta soporte si el problema persiste."
+      `Ocurrió un error al procesar tu archivo. Por favor, intenta nuevamente más tarde.${refSuffix}`
     )
   }
 
@@ -69,7 +75,7 @@ async function handleApiError(response: Response, defaultMessage: string): Promi
 
   if (status === 422) {
     throw new Error(
-      errorDetail || "El formato del archivo no es válido o no está soportado."
+      (errorDetail ? sanitizeErrorMessage(errorDetail) : "El formato del archivo no es válido o no está soportado.") + refSuffix
     )
   }
 
@@ -79,8 +85,8 @@ async function handleApiError(response: Response, defaultMessage: string): Promi
     )
   }
 
-  // For other errors, use detail if available, otherwise use default message
-  throw new Error(errorDetail || `${defaultMessage}: ${response.statusText}`)
+  const cleanDetail = errorDetail ? sanitizeErrorMessage(errorDetail) : `${defaultMessage}: ${response.statusText}`
+  throw new Error(`${cleanDetail}${refSuffix}`)
 }
 
 interface ConvertFileOptions {
@@ -250,13 +256,20 @@ export async function startConversion(
  * Never expose implementation details (file paths, Python errors) to the user.
  */
 function sanitizeErrorMessage(message: string): string {
+  if (!message) return ""
+  // Strip repeated HTTP error or processing failed prefixes
+  let cleaned = message
+    .replace(/^(?:\d{3}:\s*)+/gi, "")
+    .replace(/^(?:Processing failed:\s*)+/gi, "")
+    .trim()
+
   // Python traceback or internal path exposed
   if (
-    /Traceback \(most recent call last\)|File ".*?", line \d+|src\/infrastructure|src\/domain|src\/application|\/app\/src\//.test(message)
+    /Traceback \(most recent call last\)|File ".*?", line \d+|src\/infrastructure|src\/domain|src\/application|\/app\/|\/tmp\//.test(cleaned)
   ) {
     return "Ocurrió un error interno al procesar el archivo."
   }
-  return message
+  return cleaned
 }
 
 /**
