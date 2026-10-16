@@ -66,6 +66,7 @@ export function ImageCropDialog({
   onApply,
 }: ImageCropDialogProps) {
   const avatarEditorRef = useRef<AvatarEditor | null>(null);
+  const avatarContainerRef = useRef<HTMLDivElement>(null);
   const cropperRef = useRef<CropperRef>(null);
 
   const [mode, setMode] = useState<CropMode>("image");
@@ -75,23 +76,41 @@ export function ImageCropDialog({
     useState<AspectRatioPreset>("free");
   const [imageSourceUrl, setImageSourceUrl] = useState<string>("");
   const [isApplying, setIsApplying] = useState(false);
-  const [avatarSize, setAvatarSize] = useState(250);
-  const [avatarBorder, setAvatarBorder] = useState(16);
+  const [avatarSize, setAvatarSize] = useState(180);
+  const [avatarBorder, setAvatarBorder] = useState(10);
 
   useEffect(() => {
+    if (!open) return;
+
     const updateSize = () => {
-      if (typeof window === "undefined") return;
-      const isMobile = window.innerWidth < 640;
-      const calculatedSize = isMobile
-        ? Math.min(230, Math.max(180, window.innerWidth - 80))
-        : 280;
+      const el = avatarContainerRef.current;
+      const width =
+        el?.clientWidth ||
+        (typeof window !== "undefined" ? window.innerWidth - 64 : 260);
+      const isMobile =
+        typeof window !== "undefined" && window.innerWidth < 640;
+      const border = isMobile ? 10 : 18;
+
+      const availableWidth = Math.max(160, width - 16);
+      const maxTotal = Math.min(isMobile ? 230 : 290, availableWidth);
+      const calculatedSize = Math.max(130, maxTotal - border * 2);
+
       setAvatarSize(calculatedSize);
-      setAvatarBorder(isMobile ? 12 : 18);
+      setAvatarBorder(border);
     };
+
     updateSize();
+    const ro = new ResizeObserver(updateSize);
+    if (avatarContainerRef.current) {
+      ro.observe(avatarContainerRef.current);
+    }
     window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
-  }, []);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateSize);
+    };
+  }, [open]);
 
   useEffect(() => {
     const nextImageSourceUrl = URL.createObjectURL(file);
@@ -156,7 +175,7 @@ export function ImageCropDialog({
         }
       }}
     >
-      <DialogContent className="max-h-[92vh] overflow-y-auto overflow-x-hidden sm:max-w-5xl">
+      <DialogContent className="max-h-[92vh] w-[95vw] max-w-[95vw] sm:max-w-4xl p-4 sm:p-6 overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Recortar imagen</DialogTitle>
           <DialogDescription>
@@ -179,16 +198,16 @@ export function ImageCropDialog({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="image" className="mt-4">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.8fr)]">
-              <div className="overflow-hidden rounded-xl border bg-muted/20 p-3">
+          <TabsContent value="image" className="mt-4 min-w-0 max-w-full">
+            <div className="grid w-full min-w-0 max-w-full gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(240px,0.8fr)]">
+              <div className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border bg-muted/20 p-2 sm:p-3">
                 <Cropper
                   ref={cropperRef}
                   src={imageSourceUrl}
                   stencilComponent={RectangleStencil}
                   stencilProps={getStencilProps(aspectRatioPreset)}
                   transitions={false}
-                  className="h-105 w-full bg-muted/60"
+                  className="h-72 sm:h-96 md:h-105 w-full bg-muted/60"
                 />
               </div>
 
@@ -227,9 +246,12 @@ export function ImageCropDialog({
             </div>
           </TabsContent>
 
-          <TabsContent value="avatar" className="mt-4">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.8fr)]">
-              <div className="flex items-center justify-center overflow-hidden rounded-xl border bg-muted/20 p-2 sm:p-4">
+          <TabsContent value="avatar" className="mt-4 min-w-0 max-w-full">
+            <div className="grid w-full min-w-0 max-w-full gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(240px,0.8fr)]">
+              <div
+                ref={avatarContainerRef}
+                className="w-full min-w-0 max-w-full flex items-center justify-center overflow-hidden rounded-xl border bg-muted/20 p-2 sm:p-4 touch-none select-none"
+              >
                 <AvatarEditor
                   ref={avatarEditorRef}
                   image={file}
@@ -242,6 +264,7 @@ export function ImageCropDialog({
                   color={[15, 23, 42, 0.72]}
                   backgroundColor="rgba(0, 0, 0, 0)"
                   disableHiDPIScaling
+                  className="touch-none select-none"
                 />
               </div>
 
