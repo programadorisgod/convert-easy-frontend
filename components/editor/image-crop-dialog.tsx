@@ -31,9 +31,6 @@ interface ImageCropDialogProps {
   onApply: (file: File, mode: CropMode) => Promise<void> | void;
 }
 
-const AVATAR_SIZE = 320;
-const AVATAR_BORDER = 28;
-
 const ASPECT_RATIO_PRESETS: Record<
   Exclude<AspectRatioPreset, "free">,
   number
@@ -78,6 +75,23 @@ export function ImageCropDialog({
     useState<AspectRatioPreset>("free");
   const [imageSourceUrl, setImageSourceUrl] = useState<string>("");
   const [isApplying, setIsApplying] = useState(false);
+  const [avatarSize, setAvatarSize] = useState(250);
+  const [avatarBorder, setAvatarBorder] = useState(16);
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (typeof window === "undefined") return;
+      const isMobile = window.innerWidth < 640;
+      const calculatedSize = isMobile
+        ? Math.min(230, Math.max(180, window.innerWidth - 80))
+        : 280;
+      setAvatarSize(calculatedSize);
+      setAvatarBorder(isMobile ? 12 : 18);
+    };
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
 
   useEffect(() => {
     const nextImageSourceUrl = URL.createObjectURL(file);
@@ -142,11 +156,11 @@ export function ImageCropDialog({
         }
       }}
     >
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto overflow-x-hidden sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Recortar imagen</DialogTitle>
           <DialogDescription>
-            Elige un recorte circular para avatar o un recorte libre para fotos.
+            Recorte libre o circular para avatar.
           </DialogDescription>
         </DialogHeader>
 
@@ -179,49 +193,35 @@ export function ImageCropDialog({
               </div>
 
               <div className="space-y-4 rounded-xl border bg-card p-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Ajustes del recorte
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    El recorte se exporta en el formato mas compatible con tu
-                    imagen actual.
-                  </p>
-                </div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Proporción
+                </h3>
 
-                <div className="space-y-2">
-                  <Label>Proporción</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { value: "free", label: "Libre" },
-                      { value: "square", label: "1:1" },
-                      { value: "portrait", label: "4:5" },
-                      { value: "landscape", label: "16:9" },
-                    ].map((option) => (
-                      <Button
-                        key={option.value}
-                        type="button"
-                        variant={
-                          aspectRatioPreset === option.value
-                            ? "default"
-                            : "outline"
-                        }
-                        className="justify-center"
-                        onClick={() =>
-                          setAspectRatioPreset(
-                            option.value as AspectRatioPreset,
-                          )
-                        }
-                      >
-                        {option.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                  Arrastra la imagen para reposicionarla y usa los bordes del
-                  marco para ajustar el area visible.
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "free", label: "Libre" },
+                    { value: "square", label: "1:1" },
+                    { value: "portrait", label: "4:5" },
+                    { value: "landscape", label: "16:9" },
+                  ].map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant={
+                        aspectRatioPreset === option.value
+                          ? "default"
+                          : "outline"
+                      }
+                      className="justify-center"
+                      onClick={() =>
+                        setAspectRatioPreset(
+                          option.value as AspectRatioPreset,
+                        )
+                      }
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -229,13 +229,13 @@ export function ImageCropDialog({
 
           <TabsContent value="avatar" className="mt-4">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.8fr)]">
-              <div className="flex items-center justify-center rounded-xl border bg-muted/20 p-4">
+              <div className="flex items-center justify-center overflow-hidden rounded-xl border bg-muted/20 p-2 sm:p-4">
                 <AvatarEditor
                   ref={avatarEditorRef}
                   image={file}
-                  width={AVATAR_SIZE}
-                  height={AVATAR_SIZE}
-                  border={AVATAR_BORDER}
+                  width={avatarSize}
+                  height={avatarSize}
+                  border={avatarBorder}
                   borderRadius={999}
                   scale={avatarScale}
                   rotate={avatarRotate}
@@ -246,15 +246,9 @@ export function ImageCropDialog({
               </div>
 
               <div className="space-y-5 rounded-xl border bg-card p-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Ajustes del avatar
-                  </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Se exporta como PNG circular para conservar bordes limpios y
-                    transparencia.
-                  </p>
-                </div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Ajustes
+                </h3>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -288,11 +282,6 @@ export function ImageCropDialog({
                     max={360}
                     step={1}
                   />
-                </div>
-
-                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                  Centra el rostro dentro del circulo y ajusta el zoom para
-                  evitar recortes agresivos.
                 </div>
               </div>
             </div>

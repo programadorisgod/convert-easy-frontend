@@ -2,12 +2,23 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, AlertCircle, SlidersHorizontal } from "lucide-react";
+import {
+  ArrowLeft,
+  AlertCircle,
+  SlidersHorizontal,
+  Download,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
+import { sileo } from "sileo";
 
 import { Header } from "@/components/header";
 import { FilePreview } from "@/components/editor/file-preview";
-import { ActionSidebar } from "@/components/editor/action-sidebar";
+import {
+  ActionSidebar,
+  type ConversionCompleteDetails,
+} from "@/components/editor/action-sidebar";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -21,6 +32,7 @@ import {
   getFile,
   revokeFilePreviewUrl,
 } from "@/lib/file-store";
+import { downloadResult } from "@/lib/api-service";
 import type { StoredFileInfo } from "@/types/file";
 
 interface ConversionContext {
@@ -39,6 +51,16 @@ function EditorContent() {
   const [convertedFileName, setConvertedFileName] = useState<string | null>(
     null,
   );
+  const [readyDownload, setReadyDownload] = useState<{
+    fileName: string;
+    jobId?: string;
+    format?: string;
+    blobUrl?: string;
+    isLocal?: boolean;
+    file?: File;
+  } | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
   const [conversionContext, setConversionContext] = useState<ConversionContext | null>(null);
 
@@ -108,14 +130,101 @@ function EditorContent() {
     // Future: Implement actual file processing
   };
 
-  const handleConversionComplete = (fileName: string | null) => {
+  const handleConversionComplete = (
+    fileName: string | null,
+    details?: ConversionCompleteDetails,
+  ) => {
     setConvertedFileName(fileName);
+    if (fileName) {
+      setReadyDownload({
+        fileName,
+        ...details,
+      });
+      // Close mobile sheet on completion so the user directly sees their download CTA
+      setIsMobileSheetOpen(false);
+    } else {
+      setReadyDownload(null);
+    }
   };
 
   const handleFileUpdate = (updatedFileInfo: StoredFileInfo) => {
     sessionStorage.setItem("pendingFile", JSON.stringify(updatedFileInfo));
-    setConvertedFileName(null);
     setFileInfo(updatedFileInfo);
+  };
+
+  const handleExecuteDownload = async () => {
+    if (!readyDownload) return;
+    setIsDownloading(true);
+
+    try {
+      if (readyDownload.blobUrl) {
+        const a = document.createElement("a");
+        a.href = readyDownload.blobUrl;
+        a.download = readyDownload.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else if (readyDownload.isLocal || readyDownload.file) {
+        const fileToDownload =
+          readyDownload.file || (fileInfo ? getFile(fileInfo.id) : null);
+        if (!fileToDownload) {
+          throw new Error("No se encontró el archivo local para descargar.");
+        }
+        const url = URL.createObjectURL(fileToDownload);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = readyDownload.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else if (readyDownload.jobId && readyDownload.format) {
+        const blob = await downloadResult(
+          readyDownload.jobId,
+          readyDownload.format,
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = readyDownload.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else if (fileInfo) {
+        const file = getFile(fileInfo.id);
+        if (file) {
+          const url = URL.createObjectURL(file);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = readyDownload.fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }
+
+      sileo.success({
+        title: "¡Descarga iniciada!",
+        description: readyDownload.fileName,
+        icon: <Sparkles className="size-3.5" />,
+        roundness: 16,
+        duration: 3000,
+      });
+    } catch (error) {
+      sileo.error({
+        title: "Error al descargar",
+        description:
+          error instanceof Error
+            ? error.message
+            : "No se pudo descargar el archivo",
+        roundness: 16,
+        duration: 4000,
+      });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (isLoading) {
@@ -198,38 +307,97 @@ function EditorContent() {
             extension={fileInfo.extension}
             previewUrl={previewUrl}
             conversionCompletedFileName={convertedFileName}
+            readyDownload={readyDownload}
+            onDownload={handleExecuteDownload}
+            isDownloading={isDownloading}
           />
         </main>
       </div>
 
       {/* Mobile action bar */}
       <div className="border-t bg-card p-3 md:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button className="w-full gap-2" size="sm">
-              <SlidersHorizontal className="h-4 w-4" />
-              Abrir acciones
+        {readyDownload ? (
+          <div className="flex items-center gap-2">
+            <Button
+              className="flex-1 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm h-11"
+              size="default"
+              onClick={handleExecuteDownload}
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Descargando...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  Descargar {readyDownload.fileName.split(".").pop()?.toUpperCase()}
+                </>
+              )}
             </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="h-[88vh] p-0">
-            <SheetHeader className="border-b pb-3">
-              <SheetTitle>Acciones del archivo</SheetTitle>
-            </SheetHeader>
-            <div className="h-[calc(88vh-56px)] overflow-hidden">
-              <ActionSidebar
-                category={fileInfo.category}
-                fileName={fileInfo.name}
-                fileSize={fileInfo.size}
-                fileId={fileInfo.id}
-                inputFormat={fileInfo.extension}
-                onActionSelect={handleActionSelect}
-                onConversionComplete={handleConversionComplete}
-                onFileUpdate={handleFileUpdate}
-                className="flex h-full w-full border-0"
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+            <Sheet
+              open={isMobileSheetOpen}
+              onOpenChange={setIsMobileSheetOpen}
+            >
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-11 w-11 shrink-0"
+                  aria-label="Abrir acciones"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-[88vh] p-0">
+                <SheetHeader className="border-b pb-3 px-4 pt-3">
+                  <SheetTitle>Acciones del archivo</SheetTitle>
+                </SheetHeader>
+                <div className="h-[calc(88vh-56px)] overflow-hidden">
+                  <ActionSidebar
+                    category={fileInfo.category}
+                    fileName={fileInfo.name}
+                    fileSize={fileInfo.size}
+                    fileId={fileInfo.id}
+                    inputFormat={fileInfo.extension}
+                    onActionSelect={handleActionSelect}
+                    onConversionComplete={handleConversionComplete}
+                    onFileUpdate={handleFileUpdate}
+                    className="flex h-full w-full border-0"
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        ) : (
+          <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+            <SheetTrigger asChild>
+              <Button className="w-full gap-2 h-11" size="default">
+                <SlidersHorizontal className="h-4 w-4" />
+                Abrir acciones
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-[88vh] p-0">
+              <SheetHeader className="border-b pb-3 px-4 pt-3">
+                <SheetTitle>Acciones del archivo</SheetTitle>
+              </SheetHeader>
+              <div className="h-[calc(88vh-56px)] overflow-hidden">
+                <ActionSidebar
+                  category={fileInfo.category}
+                  fileName={fileInfo.name}
+                  fileSize={fileInfo.size}
+                  fileId={fileInfo.id}
+                  inputFormat={fileInfo.extension}
+                  onActionSelect={handleActionSelect}
+                  onConversionComplete={handleConversionComplete}
+                  onFileUpdate={handleFileUpdate}
+                  className="flex h-full w-full border-0"
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
     </div>
   );

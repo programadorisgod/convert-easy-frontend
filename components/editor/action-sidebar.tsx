@@ -11,6 +11,7 @@ import {
   GripVertical,
   Copy,
   Check,
+  CheckCircle2,
 } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -72,6 +73,14 @@ import type {
 } from "@/types/file";
 import { useState } from "react";
 
+export interface ConversionCompleteDetails {
+  jobId?: string;
+  format?: string;
+  blobUrl?: string;
+  isLocal?: boolean;
+  file?: File;
+}
+
 interface BackgroundJob {
   id: string;
   jobId: string;
@@ -95,7 +104,10 @@ interface ActionSidebarProps {
     actionId: string,
     options?: Record<string, unknown>,
   ) => void;
-  onConversionComplete?: (fileName: string | null) => void;
+  onConversionComplete?: (
+    fileName: string | null,
+    details?: ConversionCompleteDetails,
+  ) => void;
   onFileUpdate?: (fileInfo: StoredFileInfo) => void;
   className?: string;
 }
@@ -406,7 +418,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat("pdf");
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId: mergeJobId,
+          format: "pdf",
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Merge error",
@@ -568,7 +584,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat("pdf");
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId,
+          format: "pdf",
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al generar el PDF",
@@ -672,7 +692,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat(finalExtension);
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId,
+          format: finalExtension,
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "PDF error",
@@ -1154,9 +1178,14 @@ export function ActionSidebar({
 
             if (status.status === "completed") {
               const newFileName = `${fileName.split(".")[0]}.${selectedFormat}`;
+              setIsConverting(false);
               setConvertedFileName(newFileName);
-              onConversionComplete?.(newFileName);
+              onConversionComplete?.(newFileName, {
+                jobId,
+                format: selectedFormat,
+              });
             } else if (status.status === "failed") {
+              setIsConverting(false);
               sileo.error({
                 title: "Error en la conversión",
                 description:
@@ -1175,6 +1204,7 @@ export function ActionSidebar({
           1000, // Poll every second
           300, // Max 5 minutes
         );
+        setIsConverting(false);
       } catch (error) {
         console.error("Conversion error:", error);
 
@@ -1288,7 +1318,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat(outputFormat);
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId,
+          format: outputFormat,
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error en la conversión",
@@ -1407,7 +1441,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat(outputFormat);
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId,
+          format: outputFormat,
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al comprimir",
@@ -1510,7 +1548,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat("png");
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId,
+          format: "png",
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al remover fondo",
@@ -1608,7 +1650,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat("mp3");
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId,
+          format: "mp3",
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al extraer audio",
@@ -1731,7 +1777,11 @@ export function ActionSidebar({
         setConversionStatus("completed");
         setSelectedFormat(outputFormat);
         setConvertedFileName(newFileName);
-        onConversionComplete?.(newFileName);
+        onConversionComplete?.(newFileName, {
+          jobId,
+          format: outputFormat,
+          blobUrl: url,
+        });
       } else if (finalStatus.status === "failed") {
         sileo.error({
           title: "Error al agregar marca de agua",
@@ -1972,7 +2022,10 @@ export function ActionSidebar({
 
     const updatedFileInfo = createStoredFileInfo(croppedFile, fileId);
     onFileUpdate?.(updatedFileInfo);
-    onConversionComplete?.(null);
+    onConversionComplete?.(croppedFile.name, {
+      isLocal: true,
+      file: croppedFile,
+    });
 
     // Reset conversion/download job state so the UI focuses on the new local file.
     setIsConverting(false);
@@ -2011,6 +2064,40 @@ export function ActionSidebar({
         </div>
 
         <Separator />
+
+        {/* Top completion banner when ready */}
+        {(hasPriorityLocalDownload || isDownloadReady) && (
+          <>
+            <div className="p-3.5 bg-emerald-500/10 border-b border-emerald-500/20">
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span className="truncate">
+                  {localDownloadFileName || convertedFileName || "¡Archivo listo!"}
+                </span>
+              </div>
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full mt-2.5 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                disabled={isDownloadDisabled}
+                onClick={handlePrimaryDownload}
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Descargando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3.5 w-3.5" />
+                    {downloadButtonLabel}
+                  </>
+                )}
+              </Button>
+            </div>
+            <Separator />
+          </>
+        )}
 
         {/* Progress indicator when converting */}
         {isConverting && (
