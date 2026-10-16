@@ -653,18 +653,18 @@ export function ToolPage({ slug }: ToolPageProps) {
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center justify-center">
         <Button
           variant="outline"
           onClick={handleReset}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <X className="h-4 w-4" />
           Cambiar archivo
         </Button>
         <Button
           onClick={handleExecute}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <Sparkles className="h-4 w-4" />
           {getActionLabel()}
@@ -675,12 +675,12 @@ export function ToolPage({ slug }: ToolPageProps) {
   };
 
   const renderProcessing = () => (
-    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-12">
+    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 sm:p-12">
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
-      <h3 className="mb-2 text-xl font-semibold">Procesando tu archivo</h3>
-      <p className="mb-2 text-sm text-muted-foreground">
+      <h3 className="mb-2 text-xl font-semibold text-center">Procesando tu archivo</h3>
+      <p className="mb-2 text-sm text-muted-foreground text-center">
         {stage === "uploading" ? "Subiendo archivo..." : "Procesando..."}
       </p>
 
@@ -704,7 +704,7 @@ export function ToolPage({ slug }: ToolPageProps) {
           }
           handleReset();
         }}
-        className="gap-2"
+        className="gap-2 w-full sm:w-auto"
       >
         <X className="h-4 w-4" />
         Cancelar
@@ -713,30 +713,30 @@ export function ToolPage({ slug }: ToolPageProps) {
   );
 
   const renderCompleted = () => (
-    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-12">
+    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 sm:p-12">
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
         <Sparkles className="h-10 w-10 text-green-500" />
       </div>
-      <h3 className="mb-2 text-xl font-semibold">¡Listo!</h3>
-      <p className="mb-2 text-sm text-muted-foreground">
+      <h3 className="mb-2 text-xl font-semibold text-center">¡Listo!</h3>
+      <p className="mb-2 text-sm text-muted-foreground text-center">
         Tu archivo ha sido procesado exitosamente
       </p>
-      <p className="mb-8 text-xs text-muted-foreground">
+      <p className="mb-8 text-xs text-muted-foreground text-center break-all max-w-md">
         {result?.filename}
       </p>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center justify-center">
         <Button
           variant="outline"
           onClick={handleReset}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <Upload className="h-4 w-4" />
           Procesar otro archivo
         </Button>
         <Button
           onClick={handleDownload}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <Download className="h-4 w-4" />
           Descargar archivo
@@ -746,25 +746,25 @@ export function ToolPage({ slug }: ToolPageProps) {
   );
 
   const renderFailed = () => (
-    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-12">
+    <div className="flex flex-col items-center justify-center rounded-xl border bg-card p-6 sm:p-12">
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10">
         <AlertCircle className="h-10 w-10 text-destructive" />
       </div>
-      <h3 className="mb-2 text-xl font-semibold">Error en el procesamiento</h3>
-      <p className="mb-2 text-muted-foreground">{error}</p>
+      <h3 className="mb-2 text-xl font-semibold text-center">Error en el procesamiento</h3>
+      <p className="mb-2 text-muted-foreground text-center break-words max-w-md">{error}</p>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center justify-center">
         <Button
           variant="outline"
           onClick={handleReset}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <ArrowLeft className="h-4 w-4" />
           Intentar de nuevo
         </Button>
         <Button
           onClick={handleExecute}
-          className="gap-2"
+          className="gap-2 w-full sm:w-auto"
         >
           <Sparkles className="h-4 w-4" />
           Reintentar
@@ -862,12 +862,13 @@ export function ToolPage({ slug }: ToolPageProps) {
         />
 
         {invalidFile && (
-          <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 sm:p-4 text-sm text-destructive min-w-0 w-full overflow-hidden">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>{invalidFile}</span>
+            <span className="min-w-0 flex-1 break-words">{invalidFile}</span>
             <button
               onClick={() => setInvalidFile(null)}
-              className="ml-auto rounded-full p-1 hover:bg-destructive/20"
+              className="ml-auto shrink-0 rounded-full p-1 hover:bg-destructive/20"
+              aria-label="Cerrar alerta"
             >
               <X className="h-3 w-3" />
             </button>

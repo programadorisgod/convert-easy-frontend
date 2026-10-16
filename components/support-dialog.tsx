@@ -78,8 +78,25 @@ function incrementRateLimit(): { remaining: number; limited: boolean } {
   return { remaining: RATE_LIMIT_MAX - newState.count, limited: false };
 }
 
-export function SupportDialog() {
-  const [open, setOpen] = useState(false);
+export function SupportDialog({
+  trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: {
+  trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (val: boolean) => {
+    if (isControlled && controlledOnOpenChange) {
+      controlledOnOpenChange(val);
+    } else {
+      setInternalOpen(val);
+    }
+  };
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [submitResult, setSubmitResult] = useState<{
@@ -209,12 +226,16 @@ export function SupportDialog() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-sm">
-          Support
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      {trigger !== undefined ? (
+        trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null
+      ) : (
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex gap-1.5 text-sm">
+            Support
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="sm:max-w-md max-w-[calc(100vw-1.5rem)]">
         <DialogHeader>
           <DialogTitle>Get Support</DialogTitle>
           <DialogDescription>
@@ -225,7 +246,7 @@ export function SupportDialog() {
         {/* Inline feedback banner */}
         {submitResult && (
           <div
-            className={`animate-in fade-in slide-in-from-top-2 duration-200 flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm ${
+            className={`animate-in fade-in slide-in-from-top-2 duration-200 flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm min-w-0 w-full overflow-hidden ${
               submitResult.type === "success"
                 ? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
                 : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
@@ -236,7 +257,7 @@ export function SupportDialog() {
             ) : (
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             )}
-            <span>{submitResult.message}</span>
+            <span className="min-w-0 flex-1 break-words">{submitResult.message}</span>
           </div>
         )}
 

@@ -193,3 +193,47 @@
 .animate-dropdown-out {
   animation: dropdown-out 150ms ease-in forwards;
 }
+
+/* Sileo Toast & Alert responsive containment */
+@media (max-width: 640px) {
+  :root {
+    --sileo-width: calc(100vw - 24px) !important;
+  }
+
+  [data-sileo-viewport] {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    width: calc(100vw - 24px) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+
+  [data-sileo-toast] {
+    width: 100% !important;
+    max-width: calc(100vw - 24px) !important;
+    box-sizing: border-box !important;
+  }
+
+  [data-sileo-canvas] {
+    max-width: 100% !important;
+  }
+
+  [data-sileo-content] {
+    max-width: 100% !important;
+  }
+
+  [data-sileo-description] {
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+  }
+
+  [data-sileo-header] {
+    max-width: calc(100vw - 48px) !important;
+  }
+}

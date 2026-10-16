@@ -231,9 +231,9 @@ export function Base64ToImageTool() {
       />
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive min-w-0 w-full overflow-hidden">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          {error}
+          <span className="min-w-0 flex-1 break-words">{error}</span>
         </div>
       )}
 
