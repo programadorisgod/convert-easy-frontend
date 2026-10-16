@@ -63,7 +63,7 @@ async function handleApiError(response: Response, defaultMessage: string): Promi
 
   if (status === 413) {
     throw new Error(
-      "El archivo es demasiado grande. El tamaño máximo permitido es 100MB."
+      "El archivo es demasiado grande. El tamaño máximo permitido es 500MB."
     )
   }
 
@@ -378,7 +378,16 @@ export function createJobWebSocket(
 }
 
 /**
- * Upload file with automatic chunking for large files
+ * Calculate the number of chunks needed for a file.
+ * Files <= 10MB use a single chunk (total_chunks: 1).
+ * Files > 10MB (up to 500MB) are split into 5MB chunks.
+ */
+export function calculateTotalChunks(fileSize: number): number {
+  return fileSize > LARGE_FILE_THRESHOLD ? Math.ceil(fileSize / CHUNK_SIZE) : 1
+}
+
+/**
+ * Upload file with automatic chunking for large files (>10MB up to 500MB)
  * @param file File to upload
  * @param jobId Job ID
  * @param onProgress Progress callback (percentage 0-100)
@@ -389,12 +398,32 @@ export async function uploadFile(
   jobId: string,
   onProgress?: (progress: number) => void
 ): Promise<UploadChunkResponse> {
-  // Always upload complete file using /file endpoint
-  // This is simpler and works for most images/documents
-  onProgress?.(0)
-  const result = await uploadCompleteFile(jobId, file)
-  onProgress?.(100)
-  return result
+  // Direct upload for files <= 10MB
+  if (file.size <= LARGE_FILE_THRESHOLD) {
+    onProgress?.(0)
+    const result = await uploadCompleteFile(jobId, file)
+    onProgress?.(100)
+    return result
+  }
+
+  // Chunked upload for files > 10MB (up to 500MB)
+  const totalChunks = calculateTotalChunks(file.size)
+  let lastResult: UploadChunkResponse | null = null
+
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE
+    const end = Math.min(start + CHUNK_SIZE, file.size)
+    const chunk = file.slice(start, end)
+
+    lastResult = await uploadChunk(jobId, i, chunk)
+    const percent = Math.round(((i + 1) / totalChunks) * 100)
+    onProgress?.(percent)
+  }
+
+  // Merge chunks after all chunks are uploaded
+  await mergeChunks(jobId)
+
+  return lastResult!
 }
 
 /**
@@ -407,9 +436,7 @@ export async function convertFile(
   onProgress?: (stage: "uploading" | "converting", progress: number) => void,
   options?: ConvertFileOptions
 ): Promise<string> {
-  // Always use total_chunks: 1 to use the /file endpoint for complete uploads
-  // The actual chunking (if needed) is handled by uploadFile() internally
-  const totalChunks = 1
+  const totalChunks = calculateTotalChunks(file.size)
 
   // Create job
   const jobResponse = await createJob({
@@ -419,7 +446,7 @@ export async function convertFile(
     total_chunks: totalChunks,
   })
 
-  // Upload file (with progress)
+  // Upload file (with chunked progress if >10MB)
   await uploadFile(file, jobResponse.job_id, (progress) => {
     onProgress?.("uploading", progress)
   })
@@ -563,7 +590,7 @@ export async function processImageFile(
     input_format: inputFormat,
     output_formats: [operationParams.output_format || inputFormat],
     original_size: file.size,
-    total_chunks: 1,
+    total_chunks: calculateTotalChunks(file.size),
   })
 
   // Upload file
@@ -612,7 +639,7 @@ export async function processPdfFile(
     input_format: inputFormat,
     output_formats: [outputFormat],
     original_size: file.size,
-    total_chunks: 1,
+    total_chunks: calculateTotalChunks(file.size),
   })
 
   await uploadFile(file, jobResponse.job_id, (progress) => {
@@ -656,7 +683,7 @@ export async function createUploadedJob(
     input_format: inputFormat,
     output_formats: [outputFormat],
     original_size: file.size,
-    total_chunks: 1,
+    total_chunks: calculateTotalChunks(file.size),
   })
 
   await uploadFile(file, jobResponse.job_id)
@@ -795,7 +822,7 @@ export async function processAudioFile(
     input_format: inputFormat,
     output_formats: [outputFormat],
     original_size: file.size,
-    total_chunks: 1,
+    total_chunks: calculateTotalChunks(file.size),
   })
 
   await uploadFile(file, jobResponse.job_id, (progress) => {
@@ -850,7 +877,7 @@ export async function processVideoFile(
     input_format: inputFormat,
     output_formats: [outputFormat],
     original_size: file.size,
-    total_chunks: 1,
+    total_chunks: calculateTotalChunks(file.size),
   })
 
   await uploadFile(file, jobResponse.job_id, (progress) => {

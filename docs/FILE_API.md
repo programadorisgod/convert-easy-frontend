@@ -64,11 +64,12 @@ const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024  // 10MB
 
 | Función | Endpoint | Descripción |
 |---------|----------|-------------|
-| `createJob(request)` | `POST /api/v1/upload/create` | Crea trabajo de conversión |
-| `uploadFile(file, jobId, onProgress)` | `POST /api/v1/upload/{id}/file` | Sube archivo completo |
-| `uploadChunk(jobId, index, chunk)` | `POST /api/v1/upload/{id}/chunk` | Sube un chunk |
-| `mergeChunks(jobId)` | `POST /api/v1/upload/{id}/merge` | Une chunks |
-| `startConversion(jobId)` | `POST /api/v1/upload/{id}/start` | Inicia conversión |
+| `createJob(request)` | `POST /api/v1/upload/create` | Crea trabajo de conversión con `total_chunks` |
+| `calculateTotalChunks(size)` | N/A | Calcula chunks (1 para <=10MB, N chunks para >10MB hasta 500MB) |
+| `uploadFile(file, jobId, onProgress)` | `POST /api/v1/upload/{id}/file` o `/chunk` | Sube archivo completo (<=10MB) o por chunks de 5MB con merge automático (>10MB hasta 500MB) |
+| `uploadChunk(jobId, index, chunk)` | `POST /api/v1/upload/{id}/chunk` | Sube un chunk (fragmento) |
+| `mergeChunks(jobId)` | `POST /api/v1/upload/{id}/merge` | Une los chunks en un archivo |
+| `startConversion(jobId)` | `POST /api/v1/upload/{id}/start` | Encola la conversión en BullMQ |
 | `getJobStatus(jobId)` | `GET /api/v1/jobs/{id}` | Obtiene estado |
 | `pollJobStatus(jobId, callback)` | `GET /api/v1/jobs/{id}` | Polling hasta completado |
 | `downloadResult(jobId, format)` | `GET /api/v1/jobs/{id}/download` | Descarga resultado |

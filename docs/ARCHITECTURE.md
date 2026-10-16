@@ -254,7 +254,7 @@ Constantes de formatos y opciones para video y audio.
 
 - Verificación de extensiones permitidas
 - Validación de MIME types
-- Límites de tamaño (100MB max)
+- Límites de tamaño (500MB max)
 - Sanitización de nombres de archivo
 
 ### Error Sanitization
