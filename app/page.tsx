@@ -209,10 +209,18 @@ export default function HomePage() {
       <main className="container mx-auto px-4 py-12 md:py-16">
         {/* Hero Section */}
         <div className="mx-auto max-w-4xl text-center">
-          <div className="mb-4 inline-flex items-center justify-center max-w-full">
-            <Badge variant="secondary" className="px-3 py-1 text-xs font-medium max-w-full text-center whitespace-normal inline-flex items-center gap-1.5">
+          <div className="mb-4 flex items-center justify-center h-7">
+            <Badge
+              variant="secondary"
+              className="h-7 px-3 text-[11px] sm:text-xs font-medium whitespace-nowrap inline-flex items-center gap-1.5 shrink-0"
+            >
               <Shield className="size-3.5 text-primary shrink-0" />
-              <span>Privacidad Absoluta • 100% Gratuito • Sin Registro</span>
+              <span className="hidden sm:inline">
+                Privacidad Absoluta • 100% Gratuito • Sin Registro
+              </span>
+              <span className="sm:hidden">
+                100% Privado • Gratis • Sin Registro
+              </span>
             </Badge>
           </div>
 
