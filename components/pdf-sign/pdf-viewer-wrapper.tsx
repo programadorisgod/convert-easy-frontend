@@ -82,7 +82,9 @@ export function PdfViewerWrapper({
   // Handle viewer init
   const handleInit = useCallback(
     (container: EmbedPdfContainer) => {
-      console.log("PDF viewer initialized", container);
+      if (process.env.NODE_ENV === "development") {
+        console.log("PDF viewer initialized", container);
+      }
     },
     []
   );

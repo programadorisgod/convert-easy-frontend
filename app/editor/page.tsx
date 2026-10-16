@@ -126,7 +126,9 @@ function EditorContent() {
     actionId: string,
     options?: Record<string, unknown>,
   ) => {
-    console.log("[v0] Action selected:", actionId, options);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[v0] Action selected:", actionId, options);
+    }
     // Future: Implement actual file processing
   };
 
