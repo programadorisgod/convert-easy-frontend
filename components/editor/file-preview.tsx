@@ -8,7 +8,6 @@ import {
   Music,
   File,
   Loader2,
-  Download,
   CheckCircle2,
 } from "lucide-react";
 
@@ -16,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/file-utils";
 import type { FileCategory } from "@/types/file";
 import { ElementType, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 
 const DocViewerWithRenderers = dynamic(
   async () => {
@@ -303,40 +301,9 @@ export function FilePreview({
         )}
 
         {(readyDownload || conversionCompletedFileName) && (
-          <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 shadow-sm text-left">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
-                  ¡Tu archivo está listo para descargar!
-                </p>
-                <p className="mt-0.5 text-xs text-emerald-700/90 dark:text-emerald-300/90 truncate">
-                  {readyDownload?.fileName || conversionCompletedFileName}
-                </p>
-              </div>
-            </div>
-            {onDownload && (
-              <Button
-                type="button"
-                onClick={onDownload}
-                disabled={isDownloading}
-                className="w-full sm:w-auto shrink-0 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all"
-              >
-                {isDownloading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Descargando...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    Descargar
-                  </>
-                )}
-              </Button>
-            )}
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+            <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Listo: {readyDownload?.fileName || conversionCompletedFileName}</span>
           </div>
         )}
       </div>

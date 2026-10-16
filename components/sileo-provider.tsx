@@ -8,8 +8,8 @@ export function SileoProvider() {
       position="bottom-right"
       offset={16}
       options={{
-        autopilot: true,
-        duration: 5000,
+        autopilot: false,
+        duration: 2500,
         styles: {
           description: "text-muted-foreground!",
         },

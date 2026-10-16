@@ -1128,19 +1128,6 @@ export function ActionSidebar({
     // Para archivos pequeños (NO documentos): proceso simple y directo (bloqueante)
     // Los documentos SIEMPRE usan background jobs sin importar tamaño
     if (!isLargeFile && category !== "document") {
-      sileo.info({
-        title: "Procesando archivo",
-        description:
-          "Deja que nos encarguemos de todo, pronto tendrás tu archivo convertido.",
-        icon: <Sparkles className="size-3.5" />,
-        roundness: 16,
-        autopilot: {
-          expand: 0,
-          collapse: 2500,
-        },
-        duration: 3000,
-      });
-
       setIsConverting(true);
       setConversionStatus("processing");
 
@@ -1292,11 +1279,8 @@ export function ActionSidebar({
         const newFileName = `${fileName.split(".")[0]}.${outputFormat}`;
 
         sileo.success({
-          title: "¡Tu archivo está listo!",
-          description: "El archivo se descargará automáticamente.",
-          icon: <Sparkles className="size-3.5" />,
-          roundness: 16,
-          duration: 5000,
+          title: "Conversión completada",
+          duration: 2500,
         });
 
         const blob = await downloadResult(jobId, outputFormat);
@@ -2038,13 +2022,7 @@ export function ActionSidebar({
 
     sileo.success({
       title: "Recorte aplicado",
-      description:
-        mode === "avatar"
-          ? "Avatar listo. Descárgalo cuando quieras."
-          : "Imagen recortada lista para descargar.",
-      icon: <Sparkles className="size-3.5" />,
-      roundness: 16,
-      duration: 2800,
+      duration: 2000,
     });
 
     onActionSelect?.("crop", {

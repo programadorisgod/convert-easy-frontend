@@ -204,14 +204,6 @@ function EditorContent() {
           URL.revokeObjectURL(url);
         }
       }
-
-      sileo.success({
-        title: "¡Descarga iniciada!",
-        description: readyDownload.fileName,
-        icon: <Sparkles className="size-3.5" />,
-        roundness: 16,
-        duration: 3000,
-      });
     } catch (error) {
       sileo.error({
         title: "Error al descargar",
