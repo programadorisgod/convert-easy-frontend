@@ -11,7 +11,6 @@ import {
   GripVertical,
   Copy,
   Check,
-  CheckCircle2,
 } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -2037,40 +2036,6 @@ export function ActionSidebar({
         </div>
 
         <Separator />
-
-        {/* Top completion banner when ready */}
-        {(hasPriorityLocalDownload || isDownloadReady) && (
-          <>
-            <div className="p-3.5 bg-emerald-500/10 border-b border-emerald-500/20">
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <span className="truncate">
-                  {localDownloadFileName || convertedFileName || "¡Archivo listo!"}
-                </span>
-              </div>
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full mt-2.5 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
-                disabled={isDownloadDisabled}
-                onClick={handlePrimaryDownload}
-              >
-                {isDownloading ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Descargando...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-3.5 w-3.5" />
-                    {downloadButtonLabel}
-                  </>
-                )}
-              </Button>
-            </div>
-            <Separator />
-          </>
-        )}
 
         {/* Progress indicator when converting */}
         {isConverting && (
